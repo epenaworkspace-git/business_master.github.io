@@ -1,0 +1,1680 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Notarius IA — Análisis Corporativo y Asesoría de Negocios</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Source+Sans+3:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
+<style>
+/* ============================================================
+   NOTARIUS IA — Tema "Expediente Notarial"
+   Papel envejecido + tinta verde bosque + sello dorado.
+   ============================================================ */
+:root{
+  --paper:#F5F1E6;
+  --paper-2:#EFE9DA;
+  --panel:#FFFDF8;
+  --ink:#1C2B21;
+  --ink-soft:#3A4A3E;
+  --muted:#6B6455;
+  --line:#DAD2BD;
+  --gold:#A6802D;
+  --gold-soft:#C9A24B;
+  --seal:#7A2E2E;
+  --ok:#2E6B4F;
+  --shadow: 0 4px 18px rgba(28,43,33,0.10);
+  --radius: 6px;
+  --serif: 'Fraunces', serif;
+  --sans: 'Source Sans 3', sans-serif;
+  --mono: 'IBM Plex Mono', monospace;
+}
+[data-theme="dark"]{
+  --paper:#161410;
+  --paper-2:#1E1B16;
+  --panel:#211E18;
+  --ink:#EDE6D6;
+  --ink-soft:#C9C0AC;
+  --muted:#8C8371;
+  --line:#3A362C;
+  --gold:#D9AE55;
+  --gold-soft:#E8C87A;
+  --seal:#D3746F;
+  --ok:#5FAE85;
+  --shadow: 0 4px 20px rgba(0,0,0,0.5);
+}
+*{box-sizing:border-box;}
+html,body{height:100%;}
+body{
+  margin:0;
+  background:var(--paper);
+  background-image:
+    linear-gradient(var(--paper-2) 1px, transparent 1px);
+  background-size: 100% 32px;
+  color:var(--ink);
+  font-family:var(--sans);
+  -webkit-font-smoothing:antialiased;
+  transition:background-color .2s ease, color .2s ease;
+}
+#sidebar, #topbar, .tabs, .panel, .doc-row, .kv, .step, .modal, .company-item,
+.template-card, .dropzone, #chatPanel, .chat-head, input.input-line, textarea.input-area,
+.provider-card, .provider-block, .hist-item{
+  transition:background-color .2s ease, color .2s ease, border-color .2s ease;
+}
+::selection{background:var(--gold-soft); color:#241a04;}
+::-webkit-scrollbar{width:10px;height:10px;}
+::-webkit-scrollbar-thumb{background:var(--line);border-radius:10px;}
+::-webkit-scrollbar-track{background:transparent;}
+
+a{color:var(--ink-soft);}
+button{font-family:var(--sans);cursor:pointer;}
+input,textarea,select{font-family:var(--sans);}
+
+/* ---------- App shell ---------- */
+#app{display:flex; min-height:100vh;}
+
+/* ---------- Sidebar ---------- */
+#sidebar{
+  width:280px; flex:0 0 280px;
+  background:var(--panel);
+  border-right:1px solid var(--line);
+  display:flex; flex-direction:column;
+  min-height:100vh;
+}
+.brand{
+  padding:22px 20px 16px 20px;
+  border-bottom:1px solid var(--line);
+  display:flex; align-items:center; gap:12px;
+}
+.seal-mark{
+  width:40px; height:40px; border-radius:50%;
+  border:2px solid var(--gold);
+  display:flex; align-items:center; justify-content:center;
+  font-family:var(--serif); font-weight:700; font-size:16px;
+  color:var(--gold);
+  flex:0 0 auto;
+  position:relative;
+}
+.seal-mark::after{
+  content:'';
+  position:absolute; inset:-5px;
+  border:1px solid var(--gold-soft);
+  border-radius:50%;
+  opacity:.5;
+}
+.brand-text h1{
+  margin:0; font-family:var(--serif); font-size:19px; font-weight:600; letter-spacing:.2px;
+}
+.brand-text span{
+  font-size:11px; color:var(--muted); letter-spacing:.6px; text-transform:uppercase;
+}
+#companyList{
+  flex:1; overflow-y:auto; padding:12px 10px;
+}
+.company-item{
+  padding:12px 12px; border-radius:var(--radius); cursor:pointer;
+  margin-bottom:4px; border:1px solid transparent;
+  display:flex; flex-direction:column; gap:2px;
+  transition:background .15s, border-color .15s;
+}
+.company-item:hover{background:var(--paper-2);}
+.company-item.active{
+  background:#EFE7D0; border-color:var(--gold-soft);
+}
+.company-item .cname{font-weight:600; font-size:14.5px;}
+.company-item .ctype{font-size:11.5px; color:var(--muted); font-family:var(--mono);}
+#newCompanyBtn{
+  margin:12px; padding:11px; border:1px dashed var(--gold);
+  background:transparent; border-radius:var(--radius);
+  color:var(--gold); font-weight:600; font-size:13.5px;
+  letter-spacing:.3px;
+}
+#newCompanyBtn:hover{background:rgba(166,128,45,0.08);}
+.sidebar-foot{
+  padding:14px 18px; border-top:1px solid var(--line);
+  font-size:11px; color:var(--muted); line-height:1.5;
+}
+
+/* ---------- Main ---------- */
+#main{flex:1; min-width:0; display:flex; flex-direction:column;}
+#topbar{
+  padding:20px 34px; border-bottom:1px solid var(--line);
+  display:flex; align-items:center; justify-content:space-between;
+  background:linear-gradient(180deg, var(--panel), rgba(255,253,248,.4));
+}
+#topbar h2{margin:0; font-family:var(--serif); font-size:24px; font-weight:600;}
+#topbar .sub{font-size:12.5px; color:var(--muted); margin-top:3px;}
+.tabs{display:flex; gap:6px; padding:0 34px; border-bottom:1px solid var(--line); background:var(--panel);}
+.tab-btn{
+  padding:13px 16px; background:none; border:none; border-bottom:3px solid transparent;
+  font-size:13.5px; font-weight:600; color:var(--muted); letter-spacing:.2px;
+}
+.tab-btn.active{color:var(--ink); border-bottom-color:var(--gold);}
+.tab-btn:hover{color:var(--ink);}
+
+#content{flex:1; padding:28px 34px 60px 34px; overflow-y:auto;}
+.view{display:none;}
+.view.active{display:block;}
+
+.empty-state{
+  border:1px dashed var(--line); border-radius:var(--radius);
+  padding:50px 30px; text-align:center; color:var(--muted);
+  background:var(--panel);
+}
+.empty-state h3{font-family:var(--serif); color:var(--ink); font-weight:600; margin-bottom:6px;}
+
+/* ---------- Cards / panels ---------- */
+.panel{
+  background:var(--panel); border:1px solid var(--line); border-radius:var(--radius);
+  padding:22px; margin-bottom:20px; box-shadow:var(--shadow);
+}
+.panel h3{
+  font-family:var(--serif); font-size:17px; margin:0 0 14px 0; font-weight:600;
+  display:flex; align-items:center; gap:8px;
+}
+.panel h3 .num{
+  font-family:var(--mono); font-size:11px; color:var(--gold);
+  border:1px solid var(--gold-soft); border-radius:20px; padding:2px 8px;
+}
+
+/* Upload dropzone */
+.dropzone{
+  border:2px dashed var(--line); border-radius:var(--radius);
+  padding:34px; text-align:center; cursor:pointer;
+  background:var(--paper-2); transition:border-color .15s, background .15s;
+}
+.dropzone.drag{border-color:var(--gold); background:#F1E8D0;}
+.dropzone p{margin:6px 0 0 0; color:var(--muted); font-size:13px;}
+.dropzone strong{color:var(--ink); font-family:var(--serif); font-size:16px;}
+
+.btn{
+  border:none; border-radius:var(--radius); padding:10px 18px;
+  font-weight:600; font-size:13.5px; letter-spacing:.2px;
+  background:var(--ink); color:#fff;
+}
+.btn:hover{background:#0f1a12;}
+.btn.gold{background:var(--gold); color:#241a04;}
+.btn.gold:hover{background:var(--gold-soft);}
+.btn.ghost{background:transparent; color:var(--ink); border:1px solid var(--line);}
+.btn.ghost:hover{border-color:var(--gold);}
+.btn:disabled{opacity:.5; cursor:not-allowed;}
+.btn.small{padding:6px 12px; font-size:12px;}
+
+/* Document list */
+.doc-row{
+  display:flex; align-items:center; justify-content:space-between;
+  padding:13px 14px; border:1px solid var(--line); border-radius:var(--radius);
+  margin-bottom:8px; background:var(--paper);
+}
+.doc-row .di{display:flex; flex-direction:column; gap:2px;}
+.doc-row .dname{font-weight:600; font-size:13.5px;}
+.doc-row .dmeta{font-size:11.5px; color:var(--muted); font-family:var(--mono);}
+.doc-actions{display:flex; gap:8px;}
+
+/* progress bar */
+.progress-wrap{
+  margin-top:12px; background:var(--paper-2); border-radius:20px; height:8px; overflow:hidden;
+  border:1px solid var(--line);
+}
+.progress-bar{
+  height:100%; background:linear-gradient(90deg, var(--gold-soft), var(--gold));
+  width:0%; transition:width .2s;
+}
+.progress-label{font-size:11.5px; color:var(--muted); margin-top:6px; font-family:var(--mono);}
+
+/* Analysis output */
+.kv-grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(220px,1fr)); gap:12px; margin:14px 0;}
+.kv{background:var(--paper); border:1px solid var(--line); border-radius:var(--radius); padding:10px 12px;}
+.kv .k{font-size:10.5px; text-transform:uppercase; letter-spacing:.5px; color:var(--muted);}
+.kv .v{font-family:var(--mono); font-size:13.5px; margin-top:3px; word-break:break-word;}
+
+.law-chip{
+  display:inline-flex; align-items:center; gap:6px;
+  border:1px solid var(--gold-soft); color:#5c4711; background:#F7EFD9;
+  border-radius:20px; padding:5px 12px; font-size:12px; font-weight:600;
+  margin:0 6px 6px 0;
+}
+.law-list{margin-top:8px;}
+.law-detail{font-size:12.5px; color:var(--ink-soft); margin:2px 0 10px 0; line-height:1.5;}
+
+.disclaimer{
+  font-size:11.5px; color:var(--muted); border-top:1px dashed var(--line);
+  margin-top:16px; padding-top:12px; line-height:1.5;
+}
+
+textarea.input-area{
+  width:100%; border:1px solid var(--line); border-radius:var(--radius);
+  padding:12px; font-size:13.5px; font-family:var(--sans); resize:vertical; min-height:90px;
+  background:var(--paper);
+}
+textarea.input-area:focus, input.input-line:focus{outline:2px solid var(--gold-soft); outline-offset:1px;}
+input.input-line{
+  width:100%; border:1px solid var(--line); border-radius:var(--radius);
+  padding:10px 12px; font-size:13.5px; background:var(--paper);
+}
+
+/* Roadmap steps */
+.step{
+  display:flex; gap:14px; padding:14px 0; border-bottom:1px solid var(--line);
+}
+.step:last-child{border-bottom:none;}
+.step-num{
+  flex:0 0 auto; width:30px; height:30px; border-radius:50%;
+  border:1.5px solid var(--gold); color:var(--gold); font-family:var(--mono);
+  display:flex; align-items:center; justify-content:center; font-size:12.5px; font-weight:600;
+}
+.step-body h4{margin:0 0 4px 0; font-size:14.5px; font-family:var(--serif); font-weight:600;}
+.step-body p{margin:0 0 6px 0; font-size:13px; color:var(--ink-soft); line-height:1.5;}
+.step-cat{
+  display:inline-block; font-size:10px; text-transform:uppercase; letter-spacing:.4px;
+  background:var(--paper-2); border:1px solid var(--line); border-radius:4px; padding:2px 7px; color:var(--muted);
+  margin-bottom:6px;
+}
+.step-docs{font-size:12px; color:var(--muted);}
+.step-docs b{color:var(--ink-soft);}
+
+/* Doc generator */
+.template-grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:12px; margin-bottom:16px;}
+.template-card{
+  border:1px solid var(--line); border-radius:var(--radius); padding:14px; background:var(--paper);
+  cursor:pointer; transition:border-color .15s, transform .1s;
+}
+.template-card:hover{border-color:var(--gold); transform:translateY(-1px);}
+.template-card.selected{border-color:var(--gold); background:#F7EFD9;}
+.template-card .ticon{font-size:20px; margin-bottom:6px;}
+.template-card .tname{font-weight:600; font-size:13.5px; margin-bottom:3px;}
+.template-card .tfmt{font-size:10.5px; font-family:var(--mono); color:var(--muted);}
+
+.gen-output{
+  background:var(--paper); border:1px solid var(--line); border-radius:var(--radius);
+  padding:16px; margin-top:14px; font-size:13px; line-height:1.6; white-space:pre-wrap;
+  max-height:400px; overflow-y:auto;
+}
+
+/* Spinner */
+.spinner{
+  width:16px; height:16px; border-radius:50%;
+  border:2px solid rgba(0,0,0,.15); border-top-color:var(--ink);
+  animation:spin .7s linear infinite; display:inline-block; vertical-align:-3px; margin-right:6px;
+}
+@keyframes spin{to{transform:rotate(360deg);}}
+
+/* ---------- Floating chat ---------- */
+#chatFab{
+  position:fixed; bottom:26px; right:26px; z-index:80;
+  width:60px; height:60px; border-radius:50%;
+  background:var(--ink); color:#fff; border:2px solid var(--gold);
+  display:flex; align-items:center; justify-content:center;
+  box-shadow:0 6px 20px rgba(28,43,33,.35);
+  font-size:24px;
+}
+#chatFab:hover{background:#0f1a12;}
+#chatPanel{
+  position:fixed; bottom:100px; right:26px; z-index:81;
+  width:380px; max-width:92vw; height:520px; max-height:76vh;
+  background:var(--panel); border:1px solid var(--line); border-radius:10px;
+  box-shadow:0 14px 40px rgba(28,43,33,.28);
+  display:none; flex-direction:column; overflow:hidden;
+}
+#chatPanel.open{display:flex;}
+.chat-head{
+  padding:14px 16px; border-bottom:1px solid var(--line);
+  display:flex; align-items:center; justify-content:space-between;
+  background:linear-gradient(180deg,#fff,var(--paper-2));
+}
+.chat-head h4{margin:0; font-family:var(--serif); font-size:15px;}
+.chat-head .csub{font-size:10.5px; color:var(--muted);}
+.chat-close{background:none;border:none;font-size:18px;color:var(--muted);}
+#chatMessages{flex:1; overflow-y:auto; padding:14px 16px; display:flex; flex-direction:column; gap:10px;}
+.msg{max-width:86%; padding:9px 12px; border-radius:10px; font-size:13px; line-height:1.5;}
+.msg.user{align-self:flex-end; background:var(--ink); color:#fff; border-bottom-right-radius:2px;}
+.msg.bot{align-self:flex-start; background:var(--paper-2); color:var(--ink); border-bottom-left-radius:2px; white-space:pre-wrap;}
+.msg.sys{align-self:center; font-size:11px; color:var(--muted); background:none;}
+.chat-input-row{display:flex; gap:8px; padding:12px; border-top:1px solid var(--line);}
+.chat-input-row textarea{
+  flex:1; resize:none; border:1px solid var(--line); border-radius:8px; padding:9px 11px;
+  font-size:13px; max-height:80px; background:var(--paper);
+}
+.chat-input-row button{
+  border:none; background:var(--gold); color:#241a04; border-radius:8px; width:40px;
+  font-weight:700;
+}
+
+/* toast */
+#toastHost{position:fixed; top:18px; right:18px; z-index:200; display:flex; flex-direction:column; gap:8px;}
+.toast{
+  background:var(--ink); color:#fff; padding:11px 16px; border-radius:6px; font-size:13px;
+  box-shadow:var(--shadow); border-left:3px solid var(--gold);
+  animation:fadein .2s ease;
+}
+.toast.error{border-left-color:var(--seal);}
+@keyframes fadein{from{opacity:0; transform:translateY(-6px);} to{opacity:1; transform:translateY(0);}}
+
+/* modal */
+.modal-bg{
+  position:fixed; inset:0; background:rgba(20,20,15,.45); z-index:150;
+  display:none; align-items:center; justify-content:center; padding:20px;
+}
+.modal-bg.open{display:flex;}
+.modal{
+  background:var(--panel); border-radius:8px; width:440px; max-width:100%;
+  padding:24px; box-shadow:0 20px 60px rgba(0,0,0,.3);
+}
+.modal h3{margin:0 0 14px 0; font-family:var(--serif);}
+.modal .row{margin-bottom:14px;}
+.modal label{font-size:12px; color:var(--muted); display:block; margin-bottom:5px; text-transform:uppercase; letter-spacing:.4px;}
+.modal-actions{display:flex; justify-content:flex-end; gap:10px; margin-top:18px;}
+
+/* ---------- Icon buttons (topbar) ---------- */
+.icon-btn{
+  width:38px; height:38px; border-radius:50%;
+  border:1px solid var(--line); background:var(--panel); color:var(--ink);
+  font-size:16px; display:inline-flex; align-items:center; justify-content:center;
+}
+.icon-btn:hover{border-color:var(--gold);}
+
+/* ---------- Settings modal ---------- */
+.modal.wide{width:640px;}
+.modal-scroll{max-height:64vh; overflow-y:auto; padding-right:6px; margin:0 -4px;}
+.settings-section-title{
+  font-family:var(--serif); font-size:14px; font-weight:600; margin:18px 0 10px 0;
+  color:var(--ink); display:flex; align-items:center; gap:8px;
+}
+.settings-section-title:first-child{margin-top:0;}
+.provider-grid{display:grid; grid-template-columns:1fr 1fr; gap:10px;}
+.provider-card{
+  border:1.5px solid var(--line); border-radius:var(--radius); padding:12px;
+  cursor:pointer; background:var(--paper); display:flex; align-items:center; gap:10px;
+}
+.provider-card.selected{border-color:var(--gold); background:#F7EFD9;}
+[data-theme="dark"] .provider-card.selected{background:#2B2510;}
+.provider-card .pradio{
+  width:16px; height:16px; border-radius:50%; border:1.5px solid var(--muted); flex:0 0 auto; position:relative;
+}
+.provider-card.selected .pradio{border-color:var(--gold);}
+.provider-card.selected .pradio::after{
+  content:''; position:absolute; inset:3px; background:var(--gold); border-radius:50%;
+}
+.provider-card .pname{font-weight:600; font-size:13px;}
+.provider-card .pdefault{font-size:10px; color:var(--gold); font-weight:700; text-transform:uppercase;}
+
+.provider-block{
+  border:1px solid var(--line); border-radius:var(--radius); padding:14px; margin-bottom:10px; background:var(--paper);
+}
+.provider-block .pb-head{display:flex; align-items:center; justify-content:space-between; margin-bottom:10px;}
+.provider-block .pb-title{font-weight:600; font-size:13.5px;}
+.key-row{display:flex; gap:6px;}
+.key-row input{flex:1;}
+.key-row button{
+  border:1px solid var(--line); background:var(--panel); border-radius:var(--radius);
+  width:38px; font-size:14px; flex:0 0 auto;
+}
+.provider-actions{display:flex; gap:8px; margin-top:9px; align-items:center; flex-wrap:wrap;}
+.provider-status{font-size:11.5px; font-family:var(--mono); margin-left:auto;}
+.provider-status.ok{color:var(--ok);}
+.provider-status.error{color:var(--seal);}
+.provider-status.testing{color:var(--muted);}
+.model-hint{font-size:11px; color:var(--muted); margin-top:6px;}
+
+.danger-zone{
+  border:1.5px solid var(--seal); border-radius:var(--radius); padding:14px; margin-top:6px;
+  background:rgba(122,46,46,0.05);
+}
+.danger-zone p{font-size:12.5px; color:var(--ink-soft); margin:0 0 12px 0; line-height:1.5;}
+.btn.danger{background:var(--seal); color:#fff;}
+.btn.danger:hover{background:#5f2222;}
+
+/* ---------- History timeline ---------- */
+.hist-item{
+  display:flex; gap:12px; padding:12px 0; border-bottom:1px solid var(--line);
+}
+.hist-item:last-child{border-bottom:none;}
+.hist-icon{
+  flex:0 0 auto; width:30px; height:30px; border-radius:50%; background:var(--paper-2);
+  display:flex; align-items:center; justify-content:center; font-size:14px; border:1px solid var(--line);
+}
+.hist-body .htitle{font-size:13.5px; font-weight:600;}
+.hist-body .htime{font-size:11px; color:var(--muted); font-family:var(--mono); margin-top:2px;}
+
+@media (max-width: 860px){
+  #sidebar{position:fixed; z-index:60; height:100%; transform:translateX(-100%); transition:transform .2s;}
+  #sidebar.open{transform:translateX(0);}
+  #topbar{padding:16px 18px;}
+  #content{padding:18px;}
+  .tabs{padding:0 12px; overflow-x:auto;}
+  .modal.wide{width:100%;}
+  .provider-grid{grid-template-columns:1fr;}
+}
+</style>
+</head>
+<body>
+
+<div id="app">
+
+  <!-- ============ SIDEBAR ============ -->
+  <aside id="sidebar">
+    <div class="brand">
+      <div class="seal-mark">N</div>
+      <div class="brand-text">
+        <h1>Notarius IA</h1>
+        <span>Expediente corporativo</span>
+      </div>
+    </div>
+    <button id="newCompanyBtn">+ Nuevo expediente</button>
+    <div id="companyList"></div>
+    <div class="sidebar-foot">
+      Almacenamiento 100% local en este equipo (IndexedDB). Ningún archivo se envía a un servidor propio; el análisis con IA se procesa mediante la API de Claude.
+    </div>
+  </aside>
+
+  <!-- ============ MAIN ============ -->
+  <main id="main">
+    <div id="topbar">
+      <div>
+        <h2 id="companyTitle">Selecciona o crea un expediente</h2>
+        <div class="sub" id="companySub">Empieza cargando el acta constitutiva u otro documento corporativo en PDF.</div>
+      </div>
+      <div style="display:flex; align-items:center; gap:10px;">
+        <button class="icon-btn" id="themeToggle" onclick="toggleTheme()" title="Cambiar tema claro/oscuro">🌙</button>
+        <button class="icon-btn" id="settingsBtn" onclick="openSettings()" title="Configuración de IA">⚙️</button>
+        <button class="btn ghost small" onclick="toggleSidebarMobile()" style="display:none" id="mobileToggle">☰</button>
+      </div>
+    </div>
+
+    <div class="tabs">
+      <button class="tab-btn active" data-tab="docs" onclick="switchTab('docs')">1 · Documentos y OCR</button>
+      <button class="tab-btn" data-tab="legal" onclick="switchTab('legal')">2 · Análisis legal</button>
+      <button class="tab-btn" data-tab="idea" onclick="switchTab('idea')">3 · Asesoría de negocio</button>
+      <button class="tab-btn" data-tab="gen" onclick="switchTab('gen')">4 · Generador de documentos</button>
+      <button class="tab-btn" data-tab="hist" onclick="switchTab('hist')">5 · Historial</button>
+    </div>
+
+    <div id="content">
+
+      <!-- ---- VIEW: DOCS ---- -->
+      <div class="view active" id="view-docs">
+        <div class="panel">
+          <h3><span class="num">PDF</span> Cargar documentos</h3>
+          <div class="dropzone" id="dropzone">
+            <strong>Arrastra un PDF aquí o haz clic para seleccionar</strong>
+            <p>Se extrae texto nativo automáticamente. Si el PDF está escaneado (imagen), se activa OCR en español página por página.</p>
+            <p>Compatible con expedientes extensos (actas, estatutos, contratos, catálogos escaneados).</p>
+          </div>
+          <input type="file" id="fileInput" accept="application/pdf" multiple style="display:none">
+          <div id="ocrProgress" style="display:none">
+            <div class="progress-wrap"><div class="progress-bar" id="progressBar"></div></div>
+            <div class="progress-label" id="progressLabel">Procesando…</div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <h3><span class="num">📁</span> Documentos del expediente</h3>
+          <div id="docListWrap">
+            <div class="empty-state"><h3>Sin documentos aún</h3><p>Los documentos cargados aparecerán aquí con su estado de extracción.</p></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ---- VIEW: LEGAL ---- -->
+      <div class="view" id="view-legal">
+        <div class="panel">
+          <h3><span class="num">⚖</span> Análisis normativo automático</h3>
+          <p style="font-size:13px;color:var(--ink-soft);margin-top:0">Identifica el tipo societario y la normativa mexicana aplicable (LGSM, LMV, leyes de instituciones financieras, régimen SAPI, entre otras) a partir de los documentos cargados.</p>
+          <button class="btn gold" id="runAnalysisBtn" onclick="runLegalAnalysis()">Ejecutar análisis legal</button>
+          <div id="analysisOutput" style="margin-top:18px;"></div>
+        </div>
+      </div>
+
+      <!-- ---- VIEW: IDEA ---- -->
+      <div class="view" id="view-idea">
+        <div class="panel">
+          <h3><span class="num">💡</span> Convierte tu idea en un plan accionable</h3>
+          <p style="font-size:13px;color:var(--ink-soft);margin-top:0">Describe el negocio, producto o pivote que quieres implementar. La IA usará el contexto legal de tu expediente (si existe) para adaptar la ruta.</p>
+          <textarea class="input-area" id="ideaInput" placeholder="Ej. Quiero que mi empresa automotriz también ofrezca financiamiento directo a clientes con recursos propios de la sociedad…"></textarea>
+          <div style="margin-top:12px"><button class="btn gold" onclick="runIdeaAdvisor()">Generar ruta paso a paso</button></div>
+          <div id="ideaOutput" style="margin-top:18px;"></div>
+        </div>
+      </div>
+
+      <!-- ---- VIEW: GEN ---- -->
+      <div class="view" id="view-gen">
+        <div class="panel">
+          <h3><span class="num">📄</span> Generador de documentos</h3>
+          <p style="font-size:13px;color:var(--ink-soft);margin-top:0">Elige un formato, describe el propósito y genera un archivo descargable compatible con Microsoft Office / Google Workspace.</p>
+          <div class="template-grid" id="templateGrid"></div>
+          <textarea class="input-area" id="genPrompt" placeholder="Describe el documento: partes, objeto, condiciones, fechas, montos, etc."></textarea>
+          <div style="margin-top:12px; display:flex; gap:10px;">
+            <button class="btn gold" onclick="runDocGenerator()">Generar borrador con IA</button>
+            <button class="btn ghost" id="downloadBtn" style="display:none" onclick="downloadGeneratedDoc()">⬇ Descargar</button>
+          </div>
+          <div class="gen-output" id="genOutput" style="display:none"></div>
+          <div class="disclaimer">Los documentos generados son borradores de trabajo apoyados por IA. Para actos formales (constitución, modificaciones estatutarias, escrituras, contratos con efectos frente a terceros) se recomienda revisión y validación por un abogado corporativo o fedatario público.</div>
+        </div>
+      </div>
+
+      <!-- ---- VIEW: HISTORIAL ---- -->
+      <div class="view" id="view-hist">
+        <div class="panel">
+          <h3><span class="num">🕘</span> Historial del expediente</h3>
+          <p style="font-size:13px;color:var(--ink-soft);margin-top:0">Registro cronológico de todo lo ocurrido en este proyecto: documentos cargados, análisis ejecutados, rutas generadas y documentos producidos. Se guarda de forma permanente en este equipo.</p>
+          <div id="historyList"></div>
+        </div>
+      </div>
+
+    </div>
+  </main>
+</div>
+
+<!-- ============ FLOATING CHAT ============ -->
+<button id="chatFab" onclick="toggleChat()">💬</button>
+<div id="chatPanel">
+  <div class="chat-head">
+    <div>
+      <h4>Asistente Notarius</h4>
+      <div class="csub" id="chatSub">Sin expediente activo</div>
+    </div>
+    <button class="chat-close" onclick="toggleChat()">✕</button>
+  </div>
+  <div id="chatMessages"></div>
+  <div class="chat-input-row">
+    <textarea id="chatInput" rows="1" placeholder="Pregunta sobre el expediente, la normativa o el negocio…"></textarea>
+    <button onclick="sendChat()">➤</button>
+  </div>
+</div>
+
+<!-- ============ NEW COMPANY MODAL ============ -->
+<div class="modal-bg" id="newCompanyModal">
+  <div class="modal">
+    <h3>Nuevo expediente</h3>
+    <div class="row">
+      <label>Nombre de la empresa o proyecto</label>
+      <input class="input-line" id="newCompanyName" placeholder="Ej. Distribuidora Nexus S.A.P.I. de C.V.">
+    </div>
+    <div class="row">
+      <label>Nota breve (opcional)</label>
+      <input class="input-line" id="newCompanyNote" placeholder="Ej. Concesionaria — en proceso de levantamiento de capital">
+    </div>
+    <div class="modal-actions">
+      <button class="btn ghost" onclick="closeModal('newCompanyModal')">Cancelar</button>
+      <button class="btn gold" onclick="createCompany()">Crear expediente</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ CONFIGURACIÓN (IA + CLAVES) MODAL ============ -->
+<div class="modal-bg" id="settingsModal">
+  <div class="modal wide">
+    <h3>Configuración</h3>
+    <div class="modal-scroll">
+
+      <div class="settings-section-title">🧠 Inteligencia artificial predeterminada</div>
+      <div class="provider-grid" id="providerGrid"></div>
+
+      <div class="settings-section-title">🔑 Claves de API por proveedor</div>
+      <div id="providerBlocks"></div>
+
+      <div class="settings-section-title" style="color:var(--seal)">⚠ Zona de peligro</div>
+      <div class="danger-zone">
+        <p>Elimina permanentemente todos los expedientes, documentos, análisis, historial y claves de API guardadas en este navegador. Esta acción no se puede deshacer y no queda ninguna clave almacenada.</p>
+        <button class="btn danger" onclick="openDangerConfirm()">Eliminar todo el historial y las claves</button>
+      </div>
+
+    </div>
+    <div class="modal-actions">
+      <button class="btn ghost" onclick="closeModal('settingsModal')">Cerrar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ CONFIRMACIÓN DE BORRADO TOTAL ============ -->
+<div class="modal-bg" id="dangerModal">
+  <div class="modal">
+    <h3 style="color:var(--seal)">Confirmar eliminación total</h3>
+    <p style="font-size:13px; color:var(--ink-soft); line-height:1.5;">Se borrarán todos los expedientes, documentos, análisis, historial y claves de API guardadas en este equipo. Escribe <b>ELIMINAR</b> para confirmar.</p>
+    <div class="row">
+      <input class="input-line" id="dangerConfirmInput" placeholder="ELIMINAR">
+    </div>
+    <div class="modal-actions">
+      <button class="btn ghost" onclick="closeModal('dangerModal')">Cancelar</button>
+      <button class="btn danger" id="dangerConfirmBtn" disabled onclick="wipeEverything()">Eliminar todo definitivamente</button>
+    </div>
+  </div>
+</div>
+
+<div id="toastHost"></div>
+
+<!-- ============ LIBRERÍAS EXTERNAS (CDN) ============ -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/4.1.1/tesseract.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/docx/8.5.0/docx.umd.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pptxgenjs/3.12.0/pptxgen.bundle.js"></script>
+
+<script>
+/* ============================================================
+   NOTARIUS IA — app.js
+   Todo el estado vive en el navegador (IndexedDB). Ninguna
+   llamada de red además de: (a) los CDN anteriores, (b) la API
+   de Claude para análisis/generación de texto.
+   ============================================================ */
+
+/* ---------------------------------------------------------
+   0. CONFIG DE LIBRERÍAS EXTERNAS
+   --------------------------------------------------------- */
+if (window['pdfjsLib']) {
+  pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+}
+
+/* ---------------------------------------------------------
+   1. CAPA DE ALMACENAMIENTO PERSISTENTE (IndexedDB)
+   Estructura por "expediente" (empresa/proyecto):
+   {
+     id, name, note, createdAt,
+     documents: [{id, fileName, pages, ocrUsed, text, addedAt}],
+     analysis: {...} | null,
+     ideaSessions: [{idea, roadmap, createdAt}],
+     chat: [{role:'user'|'assistant', content, ts}]
+   }
+   --------------------------------------------------------- */
+const DB_NAME = 'notarius_db';
+const STORE = 'expedientes';
+let dbInstance = null;
+
+function openDB(){
+  return new Promise((resolve, reject)=>{
+    const req = indexedDB.open(DB_NAME, 1);
+    req.onupgradeneeded = (e)=>{
+      const db = e.target.result;
+      if(!db.objectStoreNames.contains(STORE)){
+        db.createObjectStore(STORE, {keyPath:'id'});
+      }
+    };
+    req.onsuccess = ()=>{ dbInstance = req.result; resolve(dbInstance); };
+    req.onerror = ()=> reject(req.error);
+  });
+}
+
+function idbGetAll(){
+  return new Promise((resolve, reject)=>{
+    const tx = dbInstance.transaction(STORE, 'readonly');
+    const req = tx.objectStore(STORE).getAll();
+    req.onsuccess = ()=> resolve(req.result || []);
+    req.onerror = ()=> reject(req.error);
+  });
+}
+function idbPut(record){
+  return new Promise((resolve, reject)=>{
+    const tx = dbInstance.transaction(STORE, 'readwrite');
+    tx.objectStore(STORE).put(record);
+    tx.oncomplete = ()=> resolve();
+    tx.onerror = ()=> reject(tx.error);
+  });
+}
+function idbDelete(id){
+  return new Promise((resolve, reject)=>{
+    const tx = dbInstance.transaction(STORE, 'readwrite');
+    tx.objectStore(STORE).delete(id);
+    tx.oncomplete = ()=> resolve();
+    tx.onerror = ()=> reject(tx.error);
+  });
+}
+
+/* ---------------------------------------------------------
+   2. ESTADO EN MEMORIA
+   --------------------------------------------------------- */
+let STATE = {
+  companies: [],       // todos los expedientes (persistidos)
+  activeId: null,       // id del expediente activo
+  selectedTemplate: null
+};
+
+function activeCompany(){
+  return STATE.companies.find(c=>c.id===STATE.activeId) || null;
+}
+async function persist(company){
+  await idbPut(company);
+}
+
+/* ---------------------------------------------------------
+   3b. HISTORIAL DE ACTIVIDAD POR EXPEDIENTE
+   --------------------------------------------------------- */
+const HIST_ICONS = {
+  crear:'📁', documento:'📄', analisis:'⚖️', idea:'💡', generado:'📝'
+};
+function logActivity(company, type, label){
+  if(!company.activity) company.activity = [];
+  company.activity.unshift({type, label, ts: Date.now()});
+}
+function renderHistory(){
+  const c = activeCompany();
+  const wrap = document.getElementById('historyList');
+  if(!c || !(c.activity||[]).length){
+    wrap.innerHTML = '<div class="empty-state"><h3>Aún no hay actividad</h3><p>Cada documento, análisis, ruta de negocio o archivo generado quedará registrado aquí con fecha y hora.</p></div>';
+    return;
+  }
+  wrap.innerHTML = c.activity.map(a=>{
+    const d = new Date(a.ts);
+    const fecha = d.toLocaleDateString('es-MX', {day:'2-digit', month:'short', year:'numeric'});
+    const hora = d.toLocaleTimeString('es-MX', {hour:'2-digit', minute:'2-digit'});
+    return `<div class="hist-item">
+      <div class="hist-icon">${HIST_ICONS[a.type]||'•'}</div>
+      <div class="hist-body">
+        <div class="htitle">${escapeHtml(a.label)}</div>
+        <div class="htime">${fecha} · ${hora}</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+/* ---------------------------------------------------------
+   3. UI HELPERS
+   --------------------------------------------------------- */
+function toast(msg, isError=false){
+  const host = document.getElementById('toastHost');
+  const el = document.createElement('div');
+  el.className = 'toast' + (isError ? ' error':'');
+  el.textContent = msg;
+  host.appendChild(el);
+  setTimeout(()=>{ el.remove(); }, 4200);
+}
+function openModal(id){ document.getElementById(id).classList.add('open'); }
+function closeModal(id){ document.getElementById(id).classList.remove('open'); }
+function switchTab(tab){
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.toggle('active', b.dataset.tab===tab));
+  document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+  document.getElementById('view-'+tab).classList.add('active');
+}
+function toggleSidebarMobile(){ document.getElementById('sidebar').classList.toggle('open'); }
+function escapeHtml(s){
+  return (s||'').replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+/* ---------------------------------------------------------
+   4. GESTIÓN DE EXPEDIENTES (EMPRESAS)
+   --------------------------------------------------------- */
+function renderCompanyList(){
+  const wrap = document.getElementById('companyList');
+  if(STATE.companies.length===0){
+    wrap.innerHTML = '<div style="padding:14px;font-size:12.5px;color:var(--muted)">Aún no hay expedientes. Crea el primero.</div>';
+    return;
+  }
+  wrap.innerHTML = STATE.companies.map(c=>{
+    const tipo = c.analysis?.tipoSocietario || c.note || 'Sin clasificar';
+    return `<div class="company-item ${c.id===STATE.activeId?'active':''}" onclick="selectCompany('${c.id}')">
+      <div class="cname">${escapeHtml(c.name)}</div>
+      <div class="ctype">${escapeHtml(tipo)}</div>
+    </div>`;
+  }).join('');
+}
+
+async function createCompany(){
+  const name = document.getElementById('newCompanyName').value.trim();
+  const note = document.getElementById('newCompanyNote').value.trim();
+  if(!name){ toast('Escribe un nombre para el expediente', true); return; }
+  const company = {
+    id: 'c_' + Date.now().toString(36) + Math.random().toString(36).slice(2,7),
+    name, note, createdAt: Date.now(),
+    documents: [], analysis: null, ideaSessions: [], chat: [], activity: []
+  };
+  logActivity(company, 'crear', `Expediente creado: ${name}`);
+  STATE.companies.push(company);
+  await persist(company);
+  STATE.activeId = company.id;
+  document.getElementById('newCompanyName').value='';
+  document.getElementById('newCompanyNote').value='';
+  closeModal('newCompanyModal');
+  renderCompanyList();
+  renderActiveCompany();
+  toast('Expediente creado: ' + name);
+}
+
+function selectCompany(id){
+  STATE.activeId = id;
+  renderCompanyList();
+  renderActiveCompany();
+}
+
+function renderActiveCompany(){
+  const c = activeCompany();
+  if(!c){
+    document.getElementById('companyTitle').textContent = 'Selecciona o crea un expediente';
+    document.getElementById('companySub').textContent = 'Empieza cargando el acta constitutiva u otro documento corporativo en PDF.';
+    document.getElementById('chatSub').textContent = 'Sin expediente activo';
+    renderDocList(); renderAnalysis(); renderChat(); renderHistory();
+    return;
+  }
+  document.getElementById('companyTitle').textContent = c.name;
+  document.getElementById('companySub').textContent = c.note || (c.documents.length + ' documento(s) cargado(s)');
+  document.getElementById('chatSub').textContent = c.name;
+  renderDocList();
+  renderAnalysis();
+  renderChat();
+  renderHistory();
+}
+
+/* ---------------------------------------------------------
+   5. CARGA DE PDF + EXTRACCIÓN DE TEXTO + OCR
+   --------------------------------------------------------- */
+const dropzone = document.getElementById('dropzone');
+const fileInput = document.getElementById('fileInput');
+dropzone.addEventListener('click', ()=> fileInput.click());
+dropzone.addEventListener('dragover', e=>{ e.preventDefault(); dropzone.classList.add('drag'); });
+dropzone.addEventListener('dragleave', ()=> dropzone.classList.remove('drag'));
+dropzone.addEventListener('drop', e=>{
+  e.preventDefault(); dropzone.classList.remove('drag');
+  handleFiles(e.dataTransfer.files);
+});
+fileInput.addEventListener('change', e=> handleFiles(e.target.files));
+
+async function handleFiles(fileList){
+  const c = activeCompany();
+  if(!c){ toast('Primero crea o selecciona un expediente', true); return; }
+  const files = Array.from(fileList).filter(f=> f.type === 'application/pdf' || f.name.toLowerCase().endsWith('.pdf'));
+  if(files.length===0){ toast('Solo se admiten archivos PDF', true); return; }
+  for(const file of files){
+    await processPdf(file, c);
+  }
+  fileInput.value = '';
+}
+
+function setProgress(pct, label){
+  const wrap = document.getElementById('ocrProgress');
+  wrap.style.display = 'block';
+  document.getElementById('progressBar').style.width = pct + '%';
+  document.getElementById('progressLabel').textContent = label;
+}
+function hideProgress(){
+  document.getElementById('ocrProgress').style.display = 'none';
+}
+
+async function processPdf(file, company){
+  const docId = 'd_' + Date.now().toString(36) + Math.random().toString(36).slice(2,6);
+  setProgress(2, `Leyendo "${file.name}"…`);
+  try{
+    const buf = await file.arrayBuffer();
+    const pdf = await pdfjsLib.getDocument({data: buf}).promise;
+    const numPages = pdf.numPages;
+    let fullText = '';
+    let ocrPagesUsed = 0;
+    let ocrWorker = null;
+
+    for(let p=1; p<=numPages; p++){
+      const pct = Math.round((p-1)/numPages*100);
+      setProgress(pct, `Página ${p} de ${numPages} — extrayendo texto…`);
+      const page = await pdf.getPage(p);
+      const textContent = await page.getTextContent();
+      let pageText = textContent.items.map(it=> it.str).join(' ').trim();
+
+      // Heurística: si la página casi no tiene texto nativo, probablemente es una imagen escaneada -> OCR
+      if(pageText.length < 25){
+        setProgress(pct, `Página ${p} de ${numPages} — sin texto nativo, aplicando OCR…`);
+        if(!ocrWorker){
+          ocrWorker = await Tesseract.createWorker('spa');
+        }
+        const viewport = page.getViewport({scale: 2.0});
+        const canvas = document.createElement('canvas');
+        canvas.width = viewport.width; canvas.height = viewport.height;
+        const ctx = canvas.getContext('2d');
+        await page.render({canvasContext: ctx, viewport}).promise;
+        const imgData = canvas.toDataURL('image/png');
+        const { data } = await ocrWorker.recognize(imgData);
+        pageText = (data.text || '').trim();
+        ocrPagesUsed++;
+        canvas.width = 0; canvas.height = 0; // liberar memoria
+      }
+      fullText += `\n\n[Página ${p}]\n` + pageText;
+    }
+    if(ocrWorker){ await ocrWorker.terminate(); }
+
+    company.documents.push({
+      id: docId, fileName: file.name, pages: numPages,
+      ocrUsed: ocrPagesUsed, text: fullText.trim(), addedAt: Date.now()
+    });
+    logActivity(company, 'documento', `Documento cargado: ${file.name} (${numPages} pág.)`);
+    await persist(company);
+    setProgress(100, 'Completado');
+    setTimeout(hideProgress, 900);
+    renderDocList();
+    renderCompanyList();
+    renderHistory();
+    toast(`"${file.name}" procesado (${numPages} pág., ${ocrPagesUsed} con OCR)`);
+  }catch(err){
+    console.error(err);
+    hideProgress();
+    toast('Error al procesar "' + file.name + '": ' + err.message, true);
+  }
+}
+
+function renderDocList(){
+  const c = activeCompany();
+  const wrap = document.getElementById('docListWrap');
+  if(!c || c.documents.length===0){
+    wrap.innerHTML = '<div class="empty-state"><h3>Sin documentos aún</h3><p>Los documentos cargados aparecerán aquí con su estado de extracción.</p></div>';
+    return;
+  }
+  wrap.innerHTML = c.documents.map(d=>{
+    const kb = Math.round((d.text.length)/1024);
+    return `<div class="doc-row">
+      <div class="di">
+        <div class="dname">${escapeHtml(d.fileName)}</div>
+        <div class="dmeta">${d.pages} pág. · ${d.ocrUsed>0 ? d.ocrUsed+' vía OCR' : 'texto nativo'} · ~${kb} KB extraídos</div>
+      </div>
+      <div class="doc-actions">
+        <button class="btn ghost small" onclick="previewDoc('${d.id}')">Ver texto</button>
+        <button class="btn ghost small" onclick="removeDoc('${d.id}')">Eliminar</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function previewDoc(docId){
+  const c = activeCompany();
+  const d = c.documents.find(x=>x.id===docId);
+  if(!d) return;
+  const w = window.open('', '_blank');
+  w.document.write(`<pre style="white-space:pre-wrap;font-family:monospace;padding:20px;">${escapeHtml(d.text)}</pre>`);
+}
+
+async function removeDoc(docId){
+  const c = activeCompany();
+  c.documents = c.documents.filter(x=>x.id!==docId);
+  await persist(c);
+  renderDocList();
+  toast('Documento eliminado del expediente');
+}
+
+/* ---------------------------------------------------------
+   6. CONFIGURACIÓN Y LLAMADAS MULTI-PROVEEDOR DE IA
+   Soporta Claude (Anthropic), ChatGPT (OpenAI), Gemini (Google)
+   y Grok (xAI). El usuario define su proveedor predeterminado
+   y sus propias claves desde el botón de Configuración (⚙️).
+   Las claves solo se guardan en localStorage de este navegador
+   y solo viajan directamente del navegador al proveedor elegido.
+   --------------------------------------------------------- */
+const AI_PROVIDERS = {
+  anthropic:{
+    name:'Claude (Anthropic)',
+    defaultModel:'claude-sonnet-4-6',
+    keyPlaceholder:'sk-ant-…',
+    buildRequest(system, userMsg, maxTokens, key, model){
+      const headers = {'Content-Type':'application/json'};
+      if(key){
+        headers['x-api-key'] = key;
+        headers['anthropic-version'] = '2023-06-01';
+        headers['anthropic-dangerous-direct-browser-access'] = 'true';
+      }
+      return {
+        url:'https://api.anthropic.com/v1/messages',
+        headers,
+        body: JSON.stringify({model: model||this.defaultModel, max_tokens:maxTokens, system, messages:[{role:'user', content:userMsg}]})
+      };
+    },
+    parse(json){ return (json.content||[]).filter(b=>b.type==='text').map(b=>b.text).join('\n').trim(); }
+  },
+  openai:{
+    name:'ChatGPT (OpenAI)',
+    defaultModel:'gpt-4o',
+    keyPlaceholder:'sk-…',
+    buildRequest(system, userMsg, maxTokens, key, model){
+      return {
+        url:'https://api.openai.com/v1/chat/completions',
+        headers:{'Content-Type':'application/json','Authorization':'Bearer '+key},
+        body: JSON.stringify({model: model||this.defaultModel, max_tokens:maxTokens, messages:[{role:'system',content:system},{role:'user',content:userMsg}]})
+      };
+    },
+    parse(json){ return (json.choices && json.choices[0]?.message?.content || '').trim(); }
+  },
+  google:{
+    name:'Gemini (Google)',
+    defaultModel:'gemini-2.0-flash',
+    keyPlaceholder:'AIza…',
+    buildRequest(system, userMsg, maxTokens, key, model){
+      const m = model || this.defaultModel;
+      return {
+        url:`https://generativelanguage.googleapis.com/v1beta/models/${m}:generateContent?key=${key}`,
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({
+          system_instruction:{parts:[{text:system}]},
+          contents:[{role:'user', parts:[{text:userMsg}]}],
+          generationConfig:{maxOutputTokens:maxTokens}
+        })
+      };
+    },
+    parse(json){
+      const cand = json.candidates && json.candidates[0];
+      return ((cand && cand.content && cand.content.parts || []).map(p=>p.text).join('\n') || '').trim();
+    }
+  },
+  xai:{
+    name:'Grok (xAI)',
+    defaultModel:'grok-2-latest',
+    keyPlaceholder:'xai-…',
+    buildRequest(system, userMsg, maxTokens, key, model){
+      return {
+        url:'https://api.x.ai/v1/chat/completions',
+        headers:{'Content-Type':'application/json','Authorization':'Bearer '+key},
+        body: JSON.stringify({model: model||this.defaultModel, max_tokens:maxTokens, messages:[{role:'system',content:system},{role:'user',content:userMsg}]})
+      };
+    },
+    parse(json){ return (json.choices && json.choices[0]?.message?.content || '').trim(); }
+  }
+};
+const PROVIDER_ORDER = ['anthropic','openai','google','xai'];
+
+let SETTINGS = {
+  defaultProvider:'anthropic',
+  keys:{anthropic:'', openai:'', google:'', xai:''},
+  models:{anthropic:'', openai:'', google:'', xai:''}
+};
+function loadSettings(){
+  try{
+    const raw = localStorage.getItem('notarius_settings');
+    if(raw){
+      const parsed = JSON.parse(raw);
+      SETTINGS = Object.assign(SETTINGS, parsed);
+      SETTINGS.keys = Object.assign({anthropic:'',openai:'',google:'',xai:''}, parsed.keys||{});
+      SETTINGS.models = Object.assign({anthropic:'',openai:'',google:'',xai:''}, parsed.models||{});
+    }
+  }catch(e){ console.warn('No se pudo leer la configuración guardada', e); }
+}
+function saveSettings(){
+  localStorage.setItem('notarius_settings', JSON.stringify(SETTINGS));
+}
+
+/**
+ * Llama al proveedor de IA configurado (o al indicado en providerOverride).
+ * Si es Claude y no hay clave configurada, intenta la vía sin clave que
+ * funciona únicamente dentro de la vista previa de artefactos de Claude.ai;
+ * fuera de ese entorno (app publicada en tu propio hosting) necesitarás
+ * configurar tu propia clave desde el botón ⚙️ Configuración.
+ */
+async function callAI(systemPrompt, userMessage, maxTokens=2000, providerOverride=null){
+  const providerId = providerOverride || SETTINGS.defaultProvider || 'anthropic';
+  const provider = AI_PROVIDERS[providerId];
+  const key = (SETTINGS.keys[providerId] || '').trim();
+  const model = (SETTINGS.models[providerId] || '').trim();
+  if(!key && providerId !== 'anthropic'){
+    throw new Error(`Configura tu API key de ${provider.name} en ⚙️ Configuración antes de continuar.`);
+  }
+  const req = provider.buildRequest(systemPrompt, userMessage, maxTokens, key, model);
+  let response;
+  try{
+    response = await fetch(req.url, {method:'POST', headers:req.headers, body:req.body});
+  }catch(networkErr){
+    throw new Error(`No se pudo contactar a ${provider.name} (posible bloqueo de CORS del proveedor o sin conexión).`);
+  }
+  if(!response.ok){
+    const t = await response.text();
+    throw new Error(`${provider.name} respondió ${response.status}: ${t.slice(0,180)}`);
+  }
+  const data = await response.json();
+  return provider.parse(data);
+}
+
+function extractJson(raw){
+  let s = raw.trim();
+  s = s.replace(/^```json/i,'').replace(/^```/,'').replace(/```$/,'').trim();
+  const start = s.indexOf('{');
+  const end = s.lastIndexOf('}');
+  const arrStart = s.indexOf('[');
+  // Preferir objeto si empieza antes que un arreglo, o usar arreglo si el string entero es un arreglo
+  if(arrStart === 0){
+    return JSON.parse(s);
+  }
+  if(start>=0 && end>start){
+    return JSON.parse(s.slice(start, end+1));
+  }
+  return JSON.parse(s);
+}
+
+function corpusForCompany(c, maxChars=14000){
+  // Combina el texto de todos los documentos, recortando si es muy extenso.
+  let combined = c.documents.map(d=> `--- ${d.fileName} ---\n${d.text}`).join('\n\n');
+  if(combined.length > maxChars){
+    combined = combined.slice(0, maxChars) + '\n\n[...documento truncado por longitud...]';
+  }
+  return combined || '(No hay documentos cargados en este expediente todavía.)';
+}
+
+/* ---------------------------------------------------------
+   7. ANÁLISIS LEGAL AUTOMÁTICO
+   --------------------------------------------------------- */
+const LEGAL_SYSTEM_PROMPT = `Eres un asesor experto en derecho corporativo y financiero mexicano. Analizas documentos societarios (actas constitutivas, estatutos, contratos, catálogos) y determinas con precisión:
+1. El tipo societario exacto (S.A., S.A. de C.V., S.A.P.I. de C.V., S. de R.L. de C.V., S.C., Sofom, etc.) y su régimen aplicable.
+2. Los datos duros presentes en el documento: razón social, RFC si aparece, fecha de constitución, notario/fedatario y número de notaría, capital social (fijo/variable), accionistas o socios, representante legal, domicilio social, objeto social, folio mercantil si aparece.
+3. El marco normativo mexicano aplicable según el tipo de entidad y actividad detectada, citando las leyes por su nombre (por ejemplo: Ley General de Sociedades Mercantiles, Ley del Mercado de Valores, Ley de Instituciones de Crédito, Ley para Regular las Agrupaciones Financieras, Ley General de Títulos y Operaciones de Crédito, Ley Federal de Protección al Consumidor, Código de Comercio, disposiciones fiscales del SAT cuando sea relevante, régimen de Sociedad Anónima Promotora de Inversión de la LMV cuando aplique) junto con una nota breve de por qué aplica.
+4. Riesgos o pendientes de cumplimiento visibles en el documento (cláusulas faltantes, inconsistencias, actualizaciones estatutarias recomendadas).
+
+Responde ÚNICAMENTE con un objeto JSON válido, sin texto adicional, sin markdown, con esta forma exacta:
+{
+  "tipoSocietario": "string breve",
+  "datosClave": [{"etiqueta": "string", "valor": "string"}],
+  "marcoNormativo": [{"ley": "string", "relevancia": "string breve de 1-2 líneas"}],
+  "riesgosPendientes": ["string", "..."],
+  "resumenEjecutivo": "string de 2-4 líneas"
+}
+Si algún dato no aparece en el documento, indícalo como "No especificado en el documento" en vez de inventarlo. Nunca inventes RFC, fechas o cifras que no estén en el texto.`;
+
+async function runLegalAnalysis(){
+  const c = activeCompany();
+  if(!c){ toast('Selecciona un expediente primero', true); return; }
+  if(c.documents.length===0){ toast('Carga al menos un documento antes de analizar', true); return; }
+  const btn = document.getElementById('runAnalysisBtn');
+  btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Analizando…';
+  try{
+    const corpus = corpusForCompany(c);
+    const raw = await callAI(LEGAL_SYSTEM_PROMPT,
+      `Documentos del expediente "${c.name}":\n\n${corpus}`, 2200);
+    const parsed = extractJson(raw);
+    c.analysis = parsed;
+    logActivity(c, 'analisis', `Análisis legal ejecutado (${parsed.tipoSocietario||'tipo no determinado'})`);
+    await persist(c);
+    renderAnalysis();
+    renderCompanyList();
+    renderHistory();
+    toast('Análisis legal completado');
+  }catch(err){
+    console.error(err);
+    toast('No se pudo completar el análisis: ' + err.message, true);
+  }finally{
+    btn.disabled = false; btn.textContent = 'Ejecutar análisis legal';
+  }
+}
+
+function renderAnalysis(){
+  const c = activeCompany();
+  const out = document.getElementById('analysisOutput');
+  if(!c || !c.analysis){
+    out.innerHTML = '';
+    return;
+  }
+  const a = c.analysis;
+  out.innerHTML = `
+    <div class="kv-grid">
+      <div class="kv"><div class="k">Tipo societario</div><div class="v">${escapeHtml(a.tipoSocietario||'—')}</div></div>
+      ${(a.datosClave||[]).map(d=>`<div class="kv"><div class="k">${escapeHtml(d.etiqueta)}</div><div class="v">${escapeHtml(d.valor)}</div></div>`).join('')}
+    </div>
+    <p style="font-size:13.5px; line-height:1.6;">${escapeHtml(a.resumenEjecutivo||'')}</p>
+    <h4 style="font-family:var(--serif); font-size:14.5px; margin:16px 0 4px 0;">Marco normativo aplicable</h4>
+    <div class="law-list">
+      ${(a.marcoNormativo||[]).map(l=>`<div><span class="law-chip">${escapeHtml(l.ley)}</span><div class="law-detail">${escapeHtml(l.relevancia)}</div></div>`).join('')}
+    </div>
+    ${(a.riesgosPendientes||[]).length ? `<h4 style="font-family:var(--serif); font-size:14.5px; margin:16px 0 4px 0;">Riesgos / pendientes detectados</h4>
+    <ul style="font-size:13px; color:var(--ink-soft); line-height:1.6;">${a.riesgosPendientes.map(r=>`<li>${escapeHtml(r)}</li>`).join('')}</ul>` : ''}
+    <div class="disclaimer">Este análisis es generado por IA a partir del texto extraído del documento y tiene fines orientativos. Para efectos legales formales, valídalo con un abogado corporativo o notario.</div>
+  `;
+}
+
+/* ---------------------------------------------------------
+   8. ASESORÍA PARA MATERIALIZAR IDEAS DE NEGOCIO
+   --------------------------------------------------------- */
+const IDEA_SYSTEM_PROMPT = `Eres un asesor mexicano especializado en estructuración corporativa, regulatoria y de negocio. Dado el contexto de una empresa (si existe) y una idea de negocio, produces una ruta de implementación clara, ordenada y realista para México.
+
+Cubre, cuando aplique: permisos y licencias (federales, estatales, municipales), trámites ante dependencias (SAT, IMSS, COFEPRIS, CNBV, CONDUSEF, Banco de México, etc. según el giro), modificaciones estatutarias necesarias (asamblea, objeto social, capital), estructura de inversión recomendada (capital propio, deuda, SAPI, vehículo de inversión), y los cargos/personal clave requeridos (por ejemplo: oficial de cumplimiento, representante legal, contador, etc.).
+
+Responde ÚNICAMENTE con un objeto JSON válido, sin texto adicional, sin markdown, con esta forma:
+{
+  "resumen": "string 2-3 líneas",
+  "pasos": [
+    {"titulo": "string", "categoria": "permisos|tramites|estatutos|inversion|personal", "descripcion": "string 2-4 líneas", "documentosRequeridos": ["string", "..."]}
+  ]
+}
+Ordena los pasos en secuencia lógica de ejecución. Sé específico a la normativa mexicana vigente. No inventes cifras exactas de costos u honorarios; si es relevante mencionarlos, usa rangos orientativos y aclara que varían.`;
+
+async function runIdeaAdvisor(){
+  const c = activeCompany();
+  const idea = document.getElementById('ideaInput').value.trim();
+  if(!idea){ toast('Describe la idea de negocio primero', true); return; }
+  const out = document.getElementById('ideaOutput');
+  out.innerHTML = '<div style="padding:20px;text-align:center;color:var(--muted);"><span class="spinner"></span> Generando ruta…</div>';
+  try{
+    const context = c ? `Contexto de la empresa "${c.name}" (usa esto para adaptar la ruta):\n${c.analysis ? JSON.stringify(c.analysis) : corpusForCompany(c, 6000)}` : 'No hay expediente de empresa asociado; trata la idea como un proyecto nuevo/independiente.';
+    const raw = await callAI(IDEA_SYSTEM_PROMPT, `${context}\n\nIdea de negocio a materializar:\n${idea}`, 2400);
+    const parsed = extractJson(raw);
+    if(c){
+      c.ideaSessions.push({idea, roadmap: parsed, createdAt: Date.now()});
+      logActivity(c, 'idea', `Ruta de negocio generada: ${idea.slice(0,60)}${idea.length>60?'…':''}`);
+      await persist(c);
+      renderHistory();
+    }
+    renderIdeaOutput(parsed);
+    toast('Ruta generada');
+  }catch(err){
+    console.error(err);
+    out.innerHTML = '';
+    toast('No se pudo generar la ruta: ' + err.message, true);
+  }
+}
+
+function renderIdeaOutput(r){
+  const out = document.getElementById('ideaOutput');
+  const catLabel = {permisos:'Permisos', tramites:'Trámites', estatutos:'Modificación estatutaria', inversion:'Estructura de inversión', personal:'Personal / cargos'};
+  out.innerHTML = `
+    <p style="font-size:13.5px; line-height:1.6;">${escapeHtml(r.resumen||'')}</p>
+    ${(r.pasos||[]).map((s,i)=>`
+      <div class="step">
+        <div class="step-num">${i+1}</div>
+        <div class="step-body">
+          <span class="step-cat">${escapeHtml(catLabel[s.categoria]||s.categoria||'General')}</span>
+          <h4>${escapeHtml(s.titulo)}</h4>
+          <p>${escapeHtml(s.descripcion)}</p>
+          ${(s.documentosRequeridos||[]).length ? `<div class="step-docs"><b>Documentos:</b> ${s.documentosRequeridos.map(escapeHtml).join(', ')}</div>` : ''}
+        </div>
+      </div>
+    `).join('')}
+    <div class="disclaimer">Ruta orientativa generada por IA con base en normativa mexicana vigente conocida por el modelo. Verifica requisitos actualizados con la dependencia correspondiente y con asesoría legal antes de ejecutar pasos formales.</div>
+  `;
+}
+
+/* ---------------------------------------------------------
+   9. GENERADOR DE DOCUMENTOS (Word / Excel / PowerPoint)
+   --------------------------------------------------------- */
+const TEMPLATES = [
+  {id:'acta', icon:'🖋️', name:'Acta de Asamblea', fmt:'DOCX'},
+  {id:'contrato', icon:'📜', name:'Contrato / Convenio', fmt:'DOCX'},
+  {id:'inversion', icon:'💰', name:'Convenio de Inversión', fmt:'DOCX'},
+  {id:'captable', icon:'📊', name:'Cap Table / Cálculo', fmt:'XLSX'},
+  {id:'presupuesto', icon:'📈', name:'Presupuesto / Plan financiero', fmt:'XLSX'},
+  {id:'pitch', icon:'🖥️', name:'Presentación ejecutiva', fmt:'PPTX'},
+  {id:'checklist', icon:'✅', name:'Checklist de cumplimiento', fmt:'DOCX'},
+  {id:'libre', icon:'✍️', name:'Documento libre', fmt:'DOCX'},
+];
+
+function renderTemplateGrid(){
+  const grid = document.getElementById('templateGrid');
+  grid.innerHTML = TEMPLATES.map(t=>`
+    <div class="template-card ${STATE.selectedTemplate===t.id?'selected':''}" onclick="selectTemplate('${t.id}')">
+      <div class="ticon">${t.icon}</div>
+      <div class="tname">${t.name}</div>
+      <div class="tfmt">${t.fmt}</div>
+    </div>
+  `).join('');
+}
+function selectTemplate(id){
+  STATE.selectedTemplate = id;
+  renderTemplateGrid();
+}
+
+let LAST_GENERATED = null; // {format, title, payload}
+
+const GEN_SYSTEM_PROMPT = `Eres un redactor experto en documentos corporativos y legales mexicanos. Generas contenido estructurado listo para convertirse en un archivo de Word, Excel o PowerPoint, usando el contexto de la empresa cuando esté disponible. Sé formal, preciso y usa terminología jurídica/financiera mexicana correcta. No inventes datos duros (RFC, fechas, montos) que no te hayan sido proporcionados: usa placeholders claros entre corchetes como [FECHA] o [MONTO] cuando falte un dato.
+
+Responde ÚNICAMENTE con un objeto JSON válido, sin texto adicional ni markdown, con esta forma exacta:
+{
+  "titulo": "string",
+  "formato": "docx|xlsx|pptx",
+  "secciones": [ {"encabezado": "string", "parrafos": ["string", "..."]} ],
+  "tablaFilas": [ ["colA","colB","colC"] ],
+  "diapositivas": [ {"titulo": "string", "bullets": ["string","..."]} ]
+}
+Completa solo los campos relevantes al formato elegido (usa "secciones" para docx, "tablaFilas" con encabezados en la primera fila para xlsx, "diapositivas" para pptx) y deja los demás como arreglo vacío.`;
+
+async function runDocGenerator(){
+  const c = activeCompany();
+  const prompt = document.getElementById('genPrompt').value.trim();
+  if(!STATE.selectedTemplate){ toast('Elige un tipo de documento', true); return; }
+  if(!prompt){ toast('Describe el contenido del documento', true); return; }
+  const tpl = TEMPLATES.find(t=>t.id===STATE.selectedTemplate);
+  const formatHint = tpl.fmt.toLowerCase();
+  const outEl = document.getElementById('genOutput');
+  outEl.style.display = 'block';
+  outEl.textContent = 'Generando borrador…';
+  document.getElementById('downloadBtn').style.display = 'none';
+  try{
+    const context = c ? `Contexto de la empresa "${c.name}":\n${c.analysis ? JSON.stringify(c.analysis) : corpusForCompany(c, 6000)}` : 'Sin expediente de empresa asociado.';
+    const userMsg = `Tipo de documento solicitado: ${tpl.name} (formato preferido: ${formatHint}).\n${context}\n\nInstrucciones del usuario:\n${prompt}`;
+    const raw = await callAI(GEN_SYSTEM_PROMPT, userMsg, 3000);
+    const parsed = extractJson(raw);
+    LAST_GENERATED = parsed;
+    outEl.textContent = renderGenPreview(parsed);
+    document.getElementById('downloadBtn').style.display = 'inline-block';
+    toast('Borrador generado — revisa y descarga');
+  }catch(err){
+    console.error(err);
+    outEl.textContent = 'Error al generar: ' + err.message;
+  }
+}
+
+function renderGenPreview(p){
+  let text = `TÍTULO: ${p.titulo}\nFORMATO: ${p.formato}\n\n`;
+  (p.secciones||[]).forEach(s=>{
+    text += `## ${s.encabezado}\n`;
+    (s.parrafos||[]).forEach(par=> text += par + '\n');
+    text += '\n';
+  });
+  if((p.tablaFilas||[]).length){
+    text += (p.tablaFilas.map(r=>r.join(' | ')).join('\n')) + '\n\n';
+  }
+  (p.diapositivas||[]).forEach((s,i)=>{
+    text += `[Diapositiva ${i+1}] ${s.titulo}\n`;
+    (s.bullets||[]).forEach(b=> text += ' • ' + b + '\n');
+    text += '\n';
+  });
+  return text;
+}
+
+async function downloadGeneratedDoc(){
+  if(!LAST_GENERATED){ return; }
+  const p = LAST_GENERATED;
+  const fmt = (p.formato||'docx').toLowerCase();
+  try{
+    if(fmt === 'xlsx'){
+      downloadXlsx(p);
+    } else if(fmt === 'pptx'){
+      await downloadPptx(p);
+    } else {
+      await downloadDocx(p);
+    }
+    const c = activeCompany();
+    if(c){
+      logActivity(c, 'generado', `Documento generado: ${p.titulo} (.${fmt})`);
+      await persist(c);
+      renderHistory();
+    }
+    toast('Archivo descargado');
+  }catch(err){
+    console.error(err);
+    toast('No se pudo generar el archivo: ' + err.message, true);
+  }
+}
+
+async function downloadDocx(p){
+  const { Document, Packer, Paragraph, HeadingLevel, TextRun } = docx;
+  const children = [];
+  children.push(new Paragraph({text: p.titulo, heading: HeadingLevel.TITLE}));
+  (p.secciones||[]).forEach(s=>{
+    children.push(new Paragraph({text: s.encabezado, heading: HeadingLevel.HEADING_2, spacing:{before:240, after:120}}));
+    (s.parrafos||[]).forEach(par=>{
+      children.push(new Paragraph({children:[new TextRun(par)], spacing:{after:120}}));
+    });
+  });
+  if((p.tablaFilas||[]).length){
+    p.tablaFilas.forEach(row=>{
+      children.push(new Paragraph({children:[new TextRun(row.join('   |   '))], spacing:{after:60}}));
+    });
+  }
+  const doc = new Document({sections:[{properties:{}, children}]});
+  const blob = await Packer.toBlob(doc);
+  triggerDownload(blob, sanitizeFilename(p.titulo) + '.docx');
+}
+
+function downloadXlsx(p){
+  const rows = (p.tablaFilas && p.tablaFilas.length) ? p.tablaFilas :
+    (p.secciones||[]).flatMap(s=> [[s.encabezado],...( (s.parrafos||[]).map(par=>[par]) )]);
+  const ws = XLSX.utils.aoa_to_sheet(rows);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Hoja1');
+  XLSX.writeFile(wb, sanitizeFilename(p.titulo) + '.xlsx');
+}
+
+async function downloadPptx(p){
+  const pptx = new PptxGenJS();
+  const slides = (p.diapositivas && p.diapositivas.length) ? p.diapositivas :
+    (p.secciones||[]).map(s=>({titulo:s.encabezado, bullets:s.parrafos||[]}));
+  // Portada
+  const cover = pptx.addSlide();
+  cover.addText(p.titulo, {x:0.5,y:2.2,w:9,h:1.2, fontSize:32, bold:true, color:'1C2B21'});
+  slides.forEach(s=>{
+    const slide = pptx.addSlide();
+    slide.addText(s.titulo, {x:0.5,y:0.4,w:9,h:0.8, fontSize:22, bold:true, color:'1C2B21'});
+    slide.addText((s.bullets||[]).map(b=>({text:b, options:{bullet:true, breakLine:true}})), {x:0.6,y:1.3,w:8.8,h:4.8, fontSize:16, color:'3A4A3E'});
+  });
+  await pptx.writeFile({fileName: sanitizeFilename(p.titulo) + '.pptx'});
+}
+
+function triggerDownload(blob, filename){
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click(); a.remove();
+  URL.revokeObjectURL(url);
+}
+function sanitizeFilename(name){
+  return (name||'documento').replace(/[^a-z0-9áéíóúñü_\- ]/gi,'').trim().slice(0,80) || 'documento';
+}
+
+/* ---------------------------------------------------------
+   10. CHAT FLOTANTE (asistente con contexto total del expediente)
+   --------------------------------------------------------- */
+function toggleChat(){
+  document.getElementById('chatPanel').classList.toggle('open');
+}
+
+function renderChat(){
+  const c = activeCompany();
+  const wrap = document.getElementById('chatMessages');
+  wrap.innerHTML = '';
+  if(!c){
+    wrap.innerHTML = '<div class="msg sys">Crea o selecciona un expediente para conversar con contexto.</div>';
+    return;
+  }
+  if(c.chat.length===0){
+    wrap.innerHTML = '<div class="msg sys">Pregúntame sobre este expediente, la normativa aplicable o cómo avanzar con tu idea de negocio.</div>';
+    return;
+  }
+  c.chat.forEach(m=>{
+    const div = document.createElement('div');
+    div.className = 'msg ' + (m.role==='user' ? 'user':'bot');
+    div.textContent = m.content;
+    wrap.appendChild(div);
+  });
+  wrap.scrollTop = wrap.scrollHeight;
+}
+
+async function sendChat(){
+  const c = activeCompany();
+  const input = document.getElementById('chatInput');
+  const text = input.value.trim();
+  if(!text) return;
+  if(!c){ toast('Selecciona un expediente para conversar con contexto', true); return; }
+  input.value = '';
+  c.chat.push({role:'user', content:text, ts:Date.now()});
+  renderChat();
+  const wrap = document.getElementById('chatMessages');
+  const thinking = document.createElement('div');
+  thinking.className = 'msg bot'; thinking.innerHTML = '<span class="spinner"></span> escribiendo…';
+  wrap.appendChild(thinking); wrap.scrollTop = wrap.scrollHeight;
+
+  try{
+    const systemPrompt = `Eres el asistente integral de Notarius IA. Tienes acceso al expediente completo de la empresa "${c.name}": documentos cargados, el análisis legal ya realizado (si existe) y el historial de asesoría de negocio. Responde de forma clara, breve y útil, en español de México, citando normativa mexicana relevante cuando aplique. Si el usuario pide un documento formal completo, sugiérele usar la pestaña "Generador de documentos". Si una pregunta requiere validación legal formal, acláralo brevemente sin dejar de dar una respuesta útil.
+
+CONTEXTO DEL EXPEDIENTE:
+Análisis legal: ${c.analysis ? JSON.stringify(c.analysis) : 'Aún no se ha ejecutado un análisis legal.'}
+Documentos disponibles: ${c.documents.map(d=>d.fileName).join(', ') || 'ninguno'}
+Extracto de documentos: ${corpusForCompany(c, 6000)}
+Sesiones de asesoría de negocio previas: ${JSON.stringify((c.ideaSessions||[]).map(s=>({idea:s.idea, resumen:s.roadmap?.resumen})))}`;
+
+    // Incluir las últimas turnos de la conversación como historial simple dentro del mensaje de usuario
+    const history = c.chat.slice(-10).map(m=> (m.role==='user'?'Usuario: ':'Asistente: ') + m.content).join('\n');
+    const reply = await callAI(systemPrompt, history, 1200);
+    c.chat.push({role:'assistant', content:reply, ts:Date.now()});
+    await persist(c);
+    renderChat();
+  }catch(err){
+    console.error(err);
+    thinking.remove();
+    toast('Error del asistente: ' + err.message, true);
+  }
+}
+document.getElementById('chatInput').addEventListener('keydown', e=>{
+  if(e.key==='Enter' && !e.shiftKey){ e.preventDefault(); sendChat(); }
+});
+
+/* ---------------------------------------------------------
+   11. TEMA CLARO / OSCURO
+   --------------------------------------------------------- */
+function applyTheme(theme){
+  document.documentElement.setAttribute('data-theme', theme);
+  const btn = document.getElementById('themeToggle');
+  if(btn) btn.textContent = theme === 'dark' ? '☀️' : '🌙';
+  localStorage.setItem('notarius_theme', theme);
+}
+function toggleTheme(){
+  const current = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light';
+  applyTheme(current === 'dark' ? 'light' : 'dark');
+}
+function initTheme(){
+  const saved = localStorage.getItem('notarius_theme');
+  if(saved){ applyTheme(saved); return; }
+  const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+  applyTheme(prefersDark ? 'dark' : 'light');
+}
+
+/* ---------------------------------------------------------
+   12. PANEL DE CONFIGURACIÓN (proveedor de IA + claves)
+   --------------------------------------------------------- */
+function openSettings(){
+  renderSettingsProviders();
+  openModal('settingsModal');
+}
+
+function renderSettingsProviders(){
+  // Tarjetas de selección de proveedor predeterminado
+  const grid = document.getElementById('providerGrid');
+  grid.innerHTML = PROVIDER_ORDER.map(id=>{
+    const p = AI_PROVIDERS[id];
+    const selected = SETTINGS.defaultProvider === id;
+    return `<div class="provider-card ${selected?'selected':''}" onclick="selectDefaultProvider('${id}')">
+      <div class="pradio"></div>
+      <div>
+        <div class="pname">${p.name}</div>
+        ${selected ? '<div class="pdefault">Predeterminada</div>' : ''}
+      </div>
+    </div>`;
+  }).join('');
+
+  // Bloques de configuración de clave por proveedor
+  const blocks = document.getElementById('providerBlocks');
+  blocks.innerHTML = PROVIDER_ORDER.map(id=>{
+    const p = AI_PROVIDERS[id];
+    const key = SETTINGS.keys[id] || '';
+    const model = SETTINGS.models[id] || '';
+    const hasKey = key.length > 0;
+    return `<div class="provider-block">
+      <div class="pb-head">
+        <div class="pb-title">${p.name}${id==='anthropic' ? ' <span style="color:var(--muted);font-weight:400;font-size:11.5px">(funciona sin clave dentro de la vista previa de Claude.ai)</span>' : ''}</div>
+      </div>
+      <div class="key-row">
+        <input type="password" id="key_${id}" class="input-line" placeholder="${p.keyPlaceholder}" value="${escapeHtml(key)}" oninput="updateKey('${id}', this.value)">
+        <button type="button" onclick="toggleKeyVisibility('${id}')" title="Mostrar/ocultar">👁</button>
+      </div>
+      <input type="text" class="input-line" style="margin-top:8px" placeholder="Modelo (opcional) — por defecto: ${p.defaultModel}" value="${escapeHtml(model)}" oninput="updateModel('${id}', this.value)">
+      <div class="provider-actions">
+        <button class="btn ghost small" onclick="testProviderConnection('${id}')">Probar conexión</button>
+        <button class="btn ghost small" onclick="removeKey('${id}')" ${hasKey?'':'disabled'}>Eliminar clave</button>
+        <span class="provider-status" id="status_${id}"></span>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function selectDefaultProvider(id){
+  SETTINGS.defaultProvider = id;
+  saveSettings();
+  renderSettingsProviders();
+}
+function updateKey(id, value){
+  SETTINGS.keys[id] = value;
+  saveSettings();
+  const removeBtn = document.querySelector(`#providerBlocks button[onclick="removeKey('${id}')"]`);
+  if(removeBtn) removeBtn.disabled = value.trim().length === 0;
+}
+function updateModel(id, value){
+  SETTINGS.models[id] = value;
+  saveSettings();
+}
+function toggleKeyVisibility(id){
+  const input = document.getElementById('key_' + id);
+  input.type = input.type === 'password' ? 'text' : 'password';
+}
+function removeKey(id){
+  SETTINGS.keys[id] = '';
+  saveSettings();
+  const status = document.getElementById('status_' + id);
+  status.textContent = ''; status.className = 'provider-status';
+  toast(AI_PROVIDERS[id].name + ': clave eliminada');
+  renderSettingsProviders();
+}
+async function testProviderConnection(id){
+  const status = document.getElementById('status_' + id);
+  status.textContent = 'Probando…'; status.className = 'provider-status testing';
+  try{
+    await callAI('Responde únicamente con la palabra OK.', 'Confirma la conexión.', 20, id);
+    status.textContent = '✔ Conectado'; status.className = 'provider-status ok';
+    toast(AI_PROVIDERS[id].name + ': conexión exitosa');
+  }catch(err){
+    status.textContent = '✘ Error de conexión'; status.className = 'provider-status error';
+    toast(AI_PROVIDERS[id].name + ': ' + err.message, true);
+  }
+}
+
+/* ---------------------------------------------------------
+   13. ZONA DE PELIGRO — BORRADO TOTAL
+   --------------------------------------------------------- */
+function openDangerConfirm(){
+  document.getElementById('dangerConfirmInput').value = '';
+  document.getElementById('dangerConfirmBtn').disabled = true;
+  openModal('dangerModal');
+}
+document.getElementById('dangerConfirmInput').addEventListener('input', (e)=>{
+  document.getElementById('dangerConfirmBtn').disabled = e.target.value.trim().toUpperCase() !== 'ELIMINAR';
+});
+async function wipeEverything(){
+  try{
+    if(dbInstance){
+      await new Promise((resolve, reject)=>{
+        const tx = dbInstance.transaction(STORE, 'readwrite');
+        tx.objectStore(STORE).clear();
+        tx.oncomplete = resolve;
+        tx.onerror = reject;
+      });
+    }
+  }catch(err){ console.error('Error limpiando IndexedDB', err); }
+
+  localStorage.removeItem('notarius_settings');
+  localStorage.removeItem('notarius_theme');
+
+  STATE.companies = [];
+  STATE.activeId = null;
+  SETTINGS = {
+    defaultProvider:'anthropic',
+    keys:{anthropic:'', openai:'', google:'', xai:''},
+    models:{anthropic:'', openai:'', google:'', xai:''}
+  };
+
+  closeModal('dangerModal');
+  closeModal('settingsModal');
+  renderCompanyList();
+  renderActiveCompany();
+  applyTheme('light');
+  toast('Todo el historial, los expedientes y las claves fueron eliminados de este equipo');
+}
+
+/* ---------------------------------------------------------
+   14. INICIALIZACIÓN
+   --------------------------------------------------------- */
+document.getElementById('newCompanyBtn').addEventListener('click', ()=> openModal('newCompanyModal'));
+
+async function init(){
+  initTheme();
+  loadSettings();
+  renderTemplateGrid();
+  try{
+    await openDB();
+    STATE.companies = await idbGetAll();
+    STATE.companies.forEach(c=>{ if(!c.activity) c.activity = []; });
+    STATE.companies.sort((a,b)=> (b.createdAt||0)-(a.createdAt||0));
+    if(STATE.companies.length){ STATE.activeId = STATE.companies[0].id; }
+  }catch(err){
+    console.error('IndexedDB no disponible, usando memoria temporal', err);
+    toast('Almacenamiento persistente no disponible en este navegador; los datos no se guardarán al cerrar.', true);
+  }
+  renderCompanyList();
+  renderActiveCompany();
+}
+init();
+</script>
+</body>
+</html>
