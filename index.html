@@ -18,6 +18,7 @@
   --paper-2:#EFE9DA;
   --panel:#FFFDF8;
   --ink:#1C2B21;
+  --ink-contrast:#FFFFFF;
   --ink-soft:#3A4A3E;
   --muted:#6B6455;
   --line:#DAD2BD;
@@ -36,12 +37,13 @@
   --paper-2:#1E1B16;
   --panel:#211E18;
   --ink:#EDE6D6;
+  --ink-contrast:#1C170F;
   --ink-soft:#C9C0AC;
-  --muted:#8C8371;
+  --muted:#A69C89;
   --line:#3A362C;
   --gold:#D9AE55;
   --gold-soft:#E8C87A;
-  --seal:#D3746F;
+  --seal:#C24A45;
   --ok:#5FAE85;
   --shadow: 0 4px 20px rgba(0,0,0,0.5);
 }
@@ -69,11 +71,15 @@ body{
 ::-webkit-scrollbar-track{background:transparent;}
 
 a{color:var(--ink-soft);}
-button{font-family:var(--sans);cursor:pointer;}
+button{font-family:var(--sans);cursor:pointer;color:inherit;}
 input,textarea,select{font-family:var(--sans);}
 
 /* ---------- App shell ---------- */
-#app{display:flex; min-height:100vh;}
+#app{display:none;}
+#app.visible{display:flex; min-height:100vh;}
+#chatFab, #chatPanel{display:none;}
+body.authenticated #chatFab{display:flex;}
+body.authenticated #chatPanel.open{display:flex;}
 
 /* ---------- Sidebar ---------- */
 #sidebar{
@@ -192,7 +198,7 @@ input,textarea,select{font-family:var(--sans);}
 .btn{
   border:none; border-radius:var(--radius); padding:10px 18px;
   font-weight:600; font-size:13.5px; letter-spacing:.2px;
-  background:var(--ink); color:#fff;
+  background:var(--ink); color:var(--ink-contrast);
 }
 .btn:hover{background:#0f1a12;}
 .btn.gold{background:var(--gold); color:#241a04;}
@@ -243,16 +249,30 @@ input,textarea,select{font-family:var(--sans);}
   font-size:11.5px; color:var(--muted); border-top:1px dashed var(--line);
   margin-top:16px; padding-top:12px; line-height:1.5;
 }
+.info-banner{
+  border:1px solid var(--gold); background:rgba(166,128,45,0.10); color:var(--ink);
+  font-size:12.5px; padding:11px 13px; border-radius:6px; margin-bottom:14px; line-height:1.5;
+}
 
 textarea.input-area{
   width:100%; border:1px solid var(--line); border-radius:var(--radius);
   padding:12px; font-size:13.5px; font-family:var(--sans); resize:vertical; min-height:90px;
-  background:var(--paper);
+  background:var(--paper); color:var(--ink);
 }
 textarea.input-area:focus, input.input-line:focus{outline:2px solid var(--gold-soft); outline-offset:1px;}
 input.input-line{
   width:100%; border:1px solid var(--line); border-radius:var(--radius);
-  padding:10px 12px; font-size:13.5px; background:var(--paper);
+  padding:10px 12px; font-size:13.5px; background:var(--paper); color:var(--ink);
+}
+/* Aseguramos contraste de texto en TODOS los campos editables, en ambos temas,
+   incluyendo autofill del navegador (gestores de contraseñas suelen forzar
+   fondo/texto propios que rompen el contraste en modo oscuro). */
+input, textarea, select{ color:var(--ink); }
+input::placeholder, textarea::placeholder{ color:var(--muted); opacity:1; }
+input:-webkit-autofill, input:-webkit-autofill:hover, input:-webkit-autofill:focus{
+  -webkit-text-fill-color:var(--ink) !important;
+  box-shadow:0 0 0 1000px var(--paper) inset !important;
+  transition:background-color 9999s ease-in-out 0s;
 }
 
 /* Roadmap steps */
@@ -305,7 +325,7 @@ input.input-line{
 #chatFab{
   position:fixed; bottom:26px; right:26px; z-index:80;
   width:60px; height:60px; border-radius:50%;
-  background:var(--ink); color:#fff; border:2px solid var(--gold);
+  background:var(--ink); color:var(--ink-contrast); border:2px solid var(--gold);
   display:flex; align-items:center; justify-content:center;
   box-shadow:0 6px 20px rgba(28,43,33,.35);
   font-size:24px;
@@ -329,7 +349,7 @@ input.input-line{
 .chat-close{background:none;border:none;font-size:18px;color:var(--muted);}
 #chatMessages{flex:1; overflow-y:auto; padding:14px 16px; display:flex; flex-direction:column; gap:10px;}
 .msg{max-width:86%; padding:9px 12px; border-radius:10px; font-size:13px; line-height:1.5;}
-.msg.user{align-self:flex-end; background:var(--ink); color:#fff; border-bottom-right-radius:2px;}
+.msg.user{align-self:flex-end; background:var(--ink); color:var(--ink-contrast); border-bottom-right-radius:2px;}
 .msg.bot{align-self:flex-start; background:var(--paper-2); color:var(--ink); border-bottom-left-radius:2px; white-space:pre-wrap;}
 .msg.sys{align-self:center; font-size:11px; color:var(--muted); background:none;}
 .chat-input-row{display:flex; gap:8px; padding:12px; border-top:1px solid var(--line);}
@@ -345,7 +365,7 @@ input.input-line{
 /* toast */
 #toastHost{position:fixed; top:18px; right:18px; z-index:200; display:flex; flex-direction:column; gap:8px;}
 .toast{
-  background:var(--ink); color:#fff; padding:11px 16px; border-radius:6px; font-size:13px;
+  background:var(--ink); color:var(--ink-contrast); padding:11px 16px; border-radius:6px; font-size:13px;
   box-shadow:var(--shadow); border-left:3px solid var(--gold);
   animation:fadein .2s ease;
 }
@@ -409,10 +429,10 @@ input.input-line{
 .key-row input{flex:1;}
 .key-row button{
   border:1px solid var(--line); background:var(--panel); border-radius:var(--radius);
-  width:38px; font-size:14px; flex:0 0 auto;
+  width:38px; font-size:14px; flex:0 0 auto; color:var(--ink);
 }
 .provider-actions{display:flex; gap:8px; margin-top:9px; align-items:center; flex-wrap:wrap;}
-.provider-status{font-size:11.5px; font-family:var(--mono); margin-left:auto;}
+.provider-status{font-size:11.5px; font-family:var(--mono); margin-top:8px; line-height:1.5; color:var(--muted);}
 .provider-status.ok{color:var(--ok);}
 .provider-status.error{color:var(--seal);}
 .provider-status.testing{color:var(--muted);}
@@ -438,6 +458,57 @@ input.input-line{
 .hist-body .htitle{font-size:13.5px; font-weight:600;}
 .hist-body .htime{font-size:11px; color:var(--muted); font-family:var(--mono); margin-top:2px;}
 
+/* ---------- Pantalla de acceso (Firebase Auth) ---------- */
+#authScreen{
+  position:fixed; inset:0; z-index:300;
+  background:var(--paper);
+  background-image: linear-gradient(var(--paper-2) 1px, transparent 1px);
+  background-size:100% 32px;
+  display:flex; align-items:center; justify-content:center; padding:20px;
+}
+.auth-card{
+  width:380px; max-width:100%;
+  background:var(--panel); border:1px solid var(--line); border-radius:10px;
+  box-shadow:0 14px 44px rgba(28,43,33,.18); padding:30px 28px;
+}
+.auth-brand{display:flex; flex-direction:column; align-items:center; gap:10px; margin-bottom:22px;}
+.auth-brand h1{font-family:var(--serif); font-size:21px; margin:0; font-weight:600;}
+.auth-brand span{font-size:11.5px; color:var(--muted); letter-spacing:.5px; text-transform:uppercase;}
+.auth-tabs{display:flex; border:1px solid var(--line); border-radius:8px; overflow:hidden; margin-bottom:18px;}
+.auth-tab{flex:1; padding:9px; background:var(--paper); border:none; font-size:12.5px; font-weight:600; color:var(--muted);}
+.auth-tab.active{background:var(--ink); color:var(--ink-contrast);}
+.auth-field{margin-bottom:12px;}
+.auth-field label{font-size:11px; color:var(--muted); text-transform:uppercase; letter-spacing:.4px; display:block; margin-bottom:5px;}
+.auth-error{
+  background:rgba(122,46,46,0.08); border:1px solid var(--seal); color:var(--seal);
+  font-size:12px; padding:9px 11px; border-radius:6px; margin-bottom:12px; display:none; line-height:1.4;
+}
+.auth-error.show{display:block;}
+.auth-submit{width:100%; padding:11px; margin-top:4px;}
+.auth-forgot{font-size:12px; color:var(--muted); text-align:right; display:block; margin:-4px 0 14px 0; background:none; border:none; text-decoration:underline; cursor:pointer;}
+.auth-divider{display:flex; align-items:center; gap:10px; margin:18px 0; color:var(--muted); font-size:11px;}
+.auth-divider::before, .auth-divider::after{content:''; flex:1; height:1px; background:var(--line);}
+.google-btn{
+  width:100%; padding:10px; border:1px solid var(--line); border-radius:var(--radius);
+  background:var(--panel); display:flex; align-items:center; justify-content:center; gap:9px;
+  font-weight:600; font-size:13.5px; color:var(--ink);
+}
+.google-btn:hover{border-color:var(--gold);}
+.auth-switch{text-align:center; font-size:12.5px; color:var(--muted); margin-top:16px;}
+.auth-switch button{background:none; border:none; color:var(--gold); font-weight:600; text-decoration:underline;}
+
+/* Insignia de usuario en la barra lateral */
+.user-badge{
+  display:flex; align-items:center; gap:10px; padding:12px 16px; border-top:1px solid var(--line);
+}
+.user-avatar{
+  width:32px; height:32px; border-radius:50%; background:var(--ink); color:var(--ink-contrast);
+  display:flex; align-items:center; justify-content:center; font-size:13px; font-weight:700; flex:0 0 auto;
+}
+.user-info{min-width:0; flex:1;}
+.user-info .uemail{font-size:12px; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+.user-info button{background:none; border:none; color:var(--muted); font-size:11px; text-decoration:underline; padding:0;}
+
 @media (max-width: 860px){
   #sidebar{position:fixed; z-index:60; height:100%; transform:translateX(-100%); transition:transform .2s;}
   #sidebar.open{transform:translateX(0);}
@@ -450,6 +521,47 @@ input.input-line{
 </style>
 </head>
 <body>
+
+<!-- ============ PANTALLA DE ACCESO (Firebase Auth) ============ -->
+<div id="authScreen">
+  <div class="auth-card">
+    <div class="auth-brand">
+      <div class="seal-mark">N</div>
+      <h1>Notarius IA</h1>
+      <span>Acceso al expediente corporativo</span>
+    </div>
+
+    <div class="auth-tabs">
+      <button class="auth-tab active" id="tabLogin" onclick="setAuthMode('login')">Iniciar sesión</button>
+      <button class="auth-tab" id="tabRegister" onclick="setAuthMode('register')">Crear cuenta</button>
+    </div>
+
+    <div class="auth-error" id="authError"></div>
+
+    <div class="auth-field">
+      <label>Correo electrónico</label>
+      <input type="email" class="input-line" id="authEmail" placeholder="tucorreo@ejemplo.com" autocomplete="email">
+    </div>
+    <div class="auth-field">
+      <label>Contraseña</label>
+      <input type="password" class="input-line" id="authPassword" placeholder="••••••••" autocomplete="current-password">
+    </div>
+    <button class="auth-forgot" id="forgotBtn" onclick="handlePasswordReset()">¿Olvidaste tu contraseña?</button>
+
+    <button class="btn gold auth-submit" id="authSubmitBtn" onclick="handleAuthSubmit()">Iniciar sesión</button>
+
+    <div class="auth-divider">o</div>
+
+    <button class="google-btn" onclick="handleGoogleSignIn()">
+      <svg width="17" height="17" viewBox="0 0 48 48"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.9 32.4 29.4 35.5 24 35.5c-6.4 0-11.6-5.2-11.6-11.5S17.6 12.5 24 12.5c2.9 0 5.6 1.1 7.6 2.9l5.7-5.7C33.9 6.5 29.2 4.5 24 4.5 13.2 4.5 4.5 13.2 4.5 24S13.2 43.5 24 43.5 43.5 34.8 43.5 24c0-1.2-.1-2.4-.3-3.5z"/><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.6 15.9 18.9 12.5 24 12.5c2.9 0 5.6 1.1 7.6 2.9l5.7-5.7C33.9 6.5 29.2 4.5 24 4.5c-7.9 0-14.7 4.5-17.7 11.1z"/><path fill="#4CAF50" d="M24 43.5c5.1 0 9.8-2 13.3-5.2l-6.1-5.2c-2 1.4-4.6 2.3-7.2 2.3-5.3 0-9.8-3.6-11.4-8.4l-6.5 5C9.2 39 16 43.5 24 43.5z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.7 2-1.9 3.7-3.5 5l6.1 5.2C41 34.5 43.5 29.6 43.5 24c0-1.2-.1-2.4-.3-3.5z"/></svg>
+      Continuar con Google
+    </button>
+
+    <div class="auth-switch" id="authSwitchLine">
+      ¿No tienes cuenta? <button onclick="setAuthMode('register')">Créala aquí</button>
+    </div>
+  </div>
+</div>
 
 <div id="app">
 
@@ -465,7 +577,14 @@ input.input-line{
     <button id="newCompanyBtn">+ Nuevo expediente</button>
     <div id="companyList"></div>
     <div class="sidebar-foot">
-      Almacenamiento 100% local en este equipo (IndexedDB). Ningún archivo se envía a un servidor propio; el análisis con IA se procesa mediante la API de Claude.
+      Almacenamiento 100% local en este equipo (IndexedDB). Ningún archivo se envía a un servidor propio; el análisis con IA se procesa mediante la API que elijas en Configuración.
+    </div>
+    <div class="user-badge">
+      <div class="user-avatar" id="userAvatar">?</div>
+      <div class="user-info">
+        <div class="uemail" id="userEmail">—</div>
+        <button onclick="handleLogout()">Cerrar sesión</button>
+      </div>
     </div>
   </aside>
 
@@ -609,6 +728,10 @@ input.input-line{
     <h3>Configuración</h3>
     <div class="modal-scroll">
 
+      <div class="info-banner" id="onboardingBanner" style="display:none;">
+        Bienvenido a Notarius IA. Conecta al menos un proveedor de IA para usar el análisis legal, la asesoría de negocio y el generador de documentos. Esto solo se pide una vez en este dispositivo — puedes cambiarlo después desde ⚙️ Configuración.
+      </div>
+
       <div class="settings-section-title">🧠 Inteligencia artificial predeterminada</div>
       <div class="provider-grid" id="providerGrid"></div>
 
@@ -623,7 +746,8 @@ input.input-line{
 
     </div>
     <div class="modal-actions">
-      <button class="btn ghost" onclick="closeModal('settingsModal')">Cerrar</button>
+      <button class="btn ghost" id="settingsCloseBtn" onclick="closeModal('settingsModal')">Cerrar</button>
+      <button class="btn gold" id="settingsContinueBtn" style="display:none" onclick="closeModal('settingsModal')">Continuar a mi expediente</button>
     </div>
   </div>
 </div>
@@ -644,6 +768,141 @@ input.input-line{
 </div>
 
 <div id="toastHost"></div>
+
+<!-- ============ FIREBASE (autenticación) ============ -->
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-app.js";
+  import {
+    getAuth, onAuthStateChanged, setPersistence, browserLocalPersistence,
+    signInWithEmailAndPassword, createUserWithEmailAndPassword,
+    GoogleAuthProvider, signInWithPopup, signOut, sendPasswordResetEmail
+  } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-auth.js";
+
+  // Configuración del proyecto Firebase de Eddy (Nexus Advance / suite AVA)
+  const firebaseConfig = {
+    apiKey: "AIzaSyCQ-C8Td92ki5ZnnVnUxQFCj4q3vZ-MzdY",
+    authDomain: "nexus-advance-ff1aa.firebaseapp.com",
+    projectId: "nexus-advance-ff1aa",
+    storageBucket: "nexus-advance-ff1aa.firebasestorage.app",
+    messagingSenderId: "1048429564329",
+    appId: "1:1048429564329:web:31af3c141375cf60baf4b8",
+    measurementId: "G-BDYD1TBQRD"
+  };
+
+  const fbApp = initializeApp(firebaseConfig);
+  const auth = getAuth(fbApp);
+  // Analytics es opcional y no debe romper el arranque si el dominio no está verificado.
+  import("https://www.gstatic.com/firebasejs/10.13.2/firebase-analytics.js")
+    .then(({ getAnalytics }) => { try{ getAnalytics(fbApp); }catch(e){} })
+    .catch(()=>{ /* analytics no disponible en este entorno, se ignora */ });
+
+  // Mantener la sesión iniciada en este navegador entre visitas.
+  setPersistence(auth, browserLocalPersistence).catch(()=>{});
+
+  let authMode = 'login'; // 'login' | 'register'
+
+  window.setAuthMode = function(mode){
+    authMode = mode;
+    document.getElementById('tabLogin').classList.toggle('active', mode==='login');
+    document.getElementById('tabRegister').classList.toggle('active', mode==='register');
+    document.getElementById('authSubmitBtn').textContent = mode==='login' ? 'Iniciar sesión' : 'Crear cuenta';
+    document.getElementById('forgotBtn').style.display = mode==='login' ? 'block' : 'none';
+    document.getElementById('authSwitchLine').innerHTML = mode==='login'
+      ? '¿No tienes cuenta? <button onclick="setAuthMode(\'register\')">Créala aquí</button>'
+      : '¿Ya tienes cuenta? <button onclick="setAuthMode(\'login\')">Inicia sesión</button>';
+    hideAuthError();
+  };
+
+  function showAuthError(message){
+    const el = document.getElementById('authError');
+    el.textContent = message;
+    el.classList.add('show');
+  }
+  function hideAuthError(){
+    document.getElementById('authError').classList.remove('show');
+  }
+
+  function friendlyAuthError(err){
+    const map = {
+      'auth/invalid-email':'El correo electrónico no es válido.',
+      'auth/user-not-found':'No existe una cuenta con ese correo.',
+      'auth/wrong-password':'Contraseña incorrecta.',
+      'auth/invalid-credential':'Correo o contraseña incorrectos.',
+      'auth/email-already-in-use':'Ya existe una cuenta con ese correo. Intenta iniciar sesión.',
+      'auth/weak-password':'La contraseña debe tener al menos 6 caracteres.',
+      'auth/popup-closed-by-user':'Se cerró la ventana de Google antes de completar el acceso.',
+      'auth/network-request-failed':'Falla de red. Verifica tu conexión e intenta de nuevo.',
+      'auth/too-many-requests':'Demasiados intentos. Espera unos minutos e intenta de nuevo.'
+    };
+    return map[err.code] || ('No se pudo completar la operación: ' + (err.message || err.code));
+  }
+
+  window.handleAuthSubmit = async function(){
+    hideAuthError();
+    const email = document.getElementById('authEmail').value.trim();
+    const password = document.getElementById('authPassword').value;
+    if(!email || !password){ showAuthError('Ingresa tu correo y contraseña.'); return; }
+    const btn = document.getElementById('authSubmitBtn');
+    btn.disabled = true; const original = btn.textContent; btn.textContent = 'Procesando…';
+    try{
+      if(authMode === 'login'){
+        await signInWithEmailAndPassword(auth, email, password);
+      } else {
+        await createUserWithEmailAndPassword(auth, email, password);
+      }
+      // onAuthStateChanged se encarga de mostrar la app.
+    }catch(err){
+      showAuthError(friendlyAuthError(err));
+    }finally{
+      btn.disabled = false; btn.textContent = original;
+    }
+  };
+
+  window.handleGoogleSignIn = async function(){
+    hideAuthError();
+    try{
+      const provider = new GoogleAuthProvider();
+      await signInWithPopup(auth, provider);
+    }catch(err){
+      showAuthError(friendlyAuthError(err));
+    }
+  };
+
+  window.handlePasswordReset = async function(){
+    hideAuthError();
+    const email = document.getElementById('authEmail').value.trim();
+    if(!email){ showAuthError('Escribe tu correo arriba y vuelve a presionar "¿Olvidaste tu contraseña?".'); return; }
+    try{
+      await sendPasswordResetEmail(auth, email);
+      showAuthError('Te enviamos un correo para restablecer tu contraseña.');
+    }catch(err){
+      showAuthError(friendlyAuthError(err));
+    }
+  };
+
+  window.handleLogout = async function(){
+    await signOut(auth);
+  };
+
+  onAuthStateChanged(auth, (user)=>{
+    const authScreen = document.getElementById('authScreen');
+    const app = document.getElementById('app');
+    if(user){
+      authScreen.style.display = 'none';
+      app.classList.add('visible');
+      document.body.classList.add('authenticated');
+      const email = user.email || (user.providerData[0] && user.providerData[0].email) || 'Sesión activa';
+      document.getElementById('userEmail').textContent = email;
+      document.getElementById('userAvatar').textContent = email.charAt(0).toUpperCase();
+      // Notificar al resto de la app (definido en app.js) que ya hay sesión.
+      if(window.onNotariusUserReady) window.onNotariusUserReady(user);
+    } else {
+      authScreen.style.display = 'flex';
+      app.classList.remove('visible');
+      document.body.classList.remove('authenticated');
+    }
+  });
+</script>
 
 <!-- ============ LIBRERÍAS EXTERNAS (CDN) ============ -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
@@ -998,7 +1257,7 @@ const AI_PROVIDERS = {
     name:'Claude (Anthropic)',
     defaultModel:'claude-sonnet-4-6',
     keyPlaceholder:'sk-ant-…',
-    buildRequest(system, userMsg, maxTokens, key, model){
+    buildRequest(system, userMsg, maxTokens, key, model, opts={}){
       const headers = {'Content-Type':'application/json'};
       if(key){
         headers['x-api-key'] = key;
@@ -1011,54 +1270,91 @@ const AI_PROVIDERS = {
         body: JSON.stringify({model: model||this.defaultModel, max_tokens:maxTokens, system, messages:[{role:'user', content:userMsg}]})
       };
     },
-    parse(json){ return (json.content||[]).filter(b=>b.type==='text').map(b=>b.text).join('\n').trim(); }
+    parse(json){
+      if(json && json.type === 'error'){
+        throw new Error(json.error?.message || 'Error desconocido de Anthropic.');
+      }
+      return (json.content||[]).filter(b=>b.type==='text').map(b=>b.text).join('\n').trim();
+    }
   },
   openai:{
     name:'ChatGPT (OpenAI)',
     defaultModel:'gpt-4o',
     keyPlaceholder:'sk-…',
-    buildRequest(system, userMsg, maxTokens, key, model){
+    // altTokenParam: algunos modelos (familia "o", modelos de razonamiento) exigen
+    // "max_completion_tokens" en vez de "max_tokens". Reintentamos con el nombre
+    // alterno automáticamente si el proveedor lo rechaza (ver callAI).
+    buildRequest(system, userMsg, maxTokens, key, model, opts={}){
+      const body = {model: model||this.defaultModel, messages:[{role:'system',content:system},{role:'user',content:userMsg}]};
+      if(opts.altTokenParam) body.max_completion_tokens = maxTokens; else body.max_tokens = maxTokens;
       return {
         url:'https://api.openai.com/v1/chat/completions',
         headers:{'Content-Type':'application/json','Authorization':'Bearer '+key},
-        body: JSON.stringify({model: model||this.defaultModel, max_tokens:maxTokens, messages:[{role:'system',content:system},{role:'user',content:userMsg}]})
+        body: JSON.stringify(body)
       };
     },
-    parse(json){ return (json.choices && json.choices[0]?.message?.content || '').trim(); }
+    parse(json){
+      const choice = json.choices && json.choices[0];
+      const content = choice?.message?.content;
+      if(!content || !content.trim()){
+        if(choice?.finish_reason === 'length') throw new Error('La respuesta se cortó por límite de tokens; intenta con un texto más corto.');
+        if(choice?.finish_reason === 'content_filter') throw new Error('La respuesta fue bloqueada por el filtro de contenido del proveedor.');
+        throw new Error('El proveedor no devolvió contenido de texto.');
+      }
+      return content.trim();
+    }
   },
   google:{
     name:'Gemini (Google)',
     defaultModel:'gemini-2.0-flash',
     keyPlaceholder:'AIza…',
-    buildRequest(system, userMsg, maxTokens, key, model){
-      const m = model || this.defaultModel;
+    buildRequest(system, userMsg, maxTokens, key, model, opts={}){
+      // Aceptar tanto "gemini-2.0-flash" como "models/gemini-2.0-flash" si lo pegan tal cual de la documentación.
+      const m = (model || this.defaultModel).replace(/^models\//,'');
       return {
         url:`https://generativelanguage.googleapis.com/v1beta/models/${m}:generateContent?key=${key}`,
         headers:{'Content-Type':'application/json'},
         body: JSON.stringify({
-          system_instruction:{parts:[{text:system}]},
+          systemInstruction:{parts:[{text:system}]},
           contents:[{role:'user', parts:[{text:userMsg}]}],
           generationConfig:{maxOutputTokens:maxTokens}
         })
       };
     },
     parse(json){
+      if(json && json.error){
+        throw new Error(json.error.message || 'Error desconocido de Gemini.');
+      }
       const cand = json.candidates && json.candidates[0];
-      return ((cand && cand.content && cand.content.parts || []).map(p=>p.text).join('\n') || '').trim();
+      const text = ((cand && cand.content && cand.content.parts || []).map(p=>p.text).join('\n') || '').trim();
+      if(!text){
+        const reason = cand?.finishReason;
+        if(reason === 'SAFETY') throw new Error('Gemini bloqueó la respuesta por políticas de seguridad de contenido.');
+        if(reason === 'MAX_TOKENS') throw new Error('La respuesta se cortó por límite de tokens; intenta con un texto más corto.');
+        if(json.promptFeedback?.blockReason) throw new Error('Gemini bloqueó la solicitud: ' + json.promptFeedback.blockReason);
+        throw new Error('Gemini no devolvió contenido de texto.');
+      }
+      return text;
     }
   },
   xai:{
     name:'Grok (xAI)',
     defaultModel:'grok-2-latest',
     keyPlaceholder:'xai-…',
-    buildRequest(system, userMsg, maxTokens, key, model){
+    buildRequest(system, userMsg, maxTokens, key, model, opts={}){
+      const body = {model: model||this.defaultModel, messages:[{role:'system',content:system},{role:'user',content:userMsg}]};
+      if(opts.altTokenParam) body.max_completion_tokens = maxTokens; else body.max_tokens = maxTokens;
       return {
         url:'https://api.x.ai/v1/chat/completions',
         headers:{'Content-Type':'application/json','Authorization':'Bearer '+key},
-        body: JSON.stringify({model: model||this.defaultModel, max_tokens:maxTokens, messages:[{role:'system',content:system},{role:'user',content:userMsg}]})
+        body: JSON.stringify(body)
       };
     },
-    parse(json){ return (json.choices && json.choices[0]?.message?.content || '').trim(); }
+    parse(json){
+      const content = json.choices && json.choices[0]?.message?.content;
+      if(!content || !content.trim()) throw new Error('El proveedor no devolvió contenido de texto.');
+      return content.trim();
+    }
   }
 };
 const PROVIDER_ORDER = ['anthropic','openai','google','xai'];
@@ -1084,30 +1380,73 @@ function saveSettings(){
 }
 
 /**
+ * Extrae un mensaje de error legible del cuerpo de una respuesta HTTP fallida,
+ * sin importar el proveedor: intenta leer formatos { error: { message } },
+ * { error: "..." } o { message: "..." }; si no es JSON, usa el texto plano.
+ */
+async function parseErrorMessage(response){
+  let raw = '';
+  try{ raw = await response.text(); }catch(e){ /* sin cuerpo legible */ }
+  if(raw){
+    try{
+      const j = JSON.parse(raw);
+      const msg = (j.error && (j.error.message || (typeof j.error === 'string' ? j.error : null)))
+        || j.message || j.error_description || null;
+      if(msg) return msg;
+    }catch(e){ /* no era JSON */ }
+  }
+  return raw ? raw.slice(0, 220) : `Error HTTP ${response.status}`;
+}
+
+/** Sugerencia en español según el código HTTP recibido, para cualquier proveedor. */
+function statusHint(status){
+  if(status === 401 || status === 403) return ' — revisa que la clave sea correcta, esté activa y tenga permisos para este modelo.';
+  if(status === 404) return ' — el modelo indicado no existe o no está disponible con tu clave; revisa el nombre del modelo en Configuración.';
+  if(status === 429) return ' — se alcanzó el límite de uso o cuota (frecuente en planes gratuitos); espera unos minutos e intenta de nuevo.';
+  if(status === 400) return ' — la solicitud fue rechazada; normalmente indica un nombre de modelo incorrecto o un parámetro no soportado.';
+  if(status >= 500) return ' — falla temporal del proveedor; intenta de nuevo en unos momentos.';
+  return '';
+}
+
+/**
  * Llama al proveedor de IA configurado (o al indicado en providerOverride).
  * Si es Claude y no hay clave configurada, intenta la vía sin clave que
  * funciona únicamente dentro de la vista previa de artefactos de Claude.ai;
  * fuera de ese entorno (app publicada en tu propio hosting) necesitarás
  * configurar tu propia clave desde el botón ⚙️ Configuración.
+ * Maneja de forma uniforme los errores de red, HTTP y de contenido de
+ * cualquier proveedor, y reintenta automáticamente variantes conocidas de
+ * parámetros (por ejemplo max_tokens vs. max_completion_tokens en OpenAI/xAI).
  */
 async function callAI(systemPrompt, userMessage, maxTokens=2000, providerOverride=null){
   const providerId = providerOverride || SETTINGS.defaultProvider || 'anthropic';
   const provider = AI_PROVIDERS[providerId];
+  if(!provider) throw new Error('Proveedor de IA no reconocido: ' + providerId);
   const key = (SETTINGS.keys[providerId] || '').trim();
   const model = (SETTINGS.models[providerId] || '').trim();
   if(!key && providerId !== 'anthropic'){
     throw new Error(`Configura tu API key de ${provider.name} en ⚙️ Configuración antes de continuar.`);
   }
-  const req = provider.buildRequest(systemPrompt, userMessage, maxTokens, key, model);
+  return await callProviderWithRetry(provider, providerId, systemPrompt, userMessage, maxTokens, key, model);
+}
+
+async function callProviderWithRetry(provider, providerId, systemPrompt, userMessage, maxTokens, key, model, opts={}){
+  const req = provider.buildRequest(systemPrompt, userMessage, maxTokens, key, model, opts);
   let response;
   try{
     response = await fetch(req.url, {method:'POST', headers:req.headers, body:req.body});
   }catch(networkErr){
-    throw new Error(`No se pudo contactar a ${provider.name} (posible bloqueo de CORS del proveedor o sin conexión).`);
+    throw new Error(`No se pudo contactar a ${provider.name}. Verifica tu conexión a internet, o si el proveedor bloquea llamadas directas desde el navegador (CORS) — en ese caso necesitarías un proxy propio.`);
   }
   if(!response.ok){
-    const t = await response.text();
-    throw new Error(`${provider.name} respondió ${response.status}: ${t.slice(0,180)}`);
+    const msg = await parseErrorMessage(response);
+    // Compatibilidad automática: reintenta una vez con "max_completion_tokens"
+    // si el proveedor (OpenAI/xAI) rechazó "max_tokens" para ese modelo.
+    const canRetryTokenParam = (providerId === 'openai' || providerId === 'xai') && !opts.altTokenParam && /max_tokens/i.test(msg);
+    if(canRetryTokenParam){
+      return await callProviderWithRetry(provider, providerId, systemPrompt, userMessage, maxTokens, key, model, {altTokenParam:true});
+    }
+    throw new Error(`${provider.name} — HTTP ${response.status}: ${msg}${statusHint(response.status)}`);
   }
   const data = await response.json();
   return provider.parse(data);
@@ -1525,7 +1864,15 @@ function initTheme(){
 /* ---------------------------------------------------------
    12. PANEL DE CONFIGURACIÓN (proveedor de IA + claves)
    --------------------------------------------------------- */
-function openSettings(){
+let ONBOARDING_MODE = false;
+function openSettings(onboarding=false){
+  ONBOARDING_MODE = onboarding;
+  const banner = document.getElementById('onboardingBanner');
+  const continueBtn = document.getElementById('settingsContinueBtn');
+  const closeBtn = document.getElementById('settingsCloseBtn');
+  if(banner) banner.style.display = onboarding ? 'block' : 'none';
+  if(continueBtn) continueBtn.style.display = onboarding ? 'inline-block' : 'none';
+  if(closeBtn) closeBtn.style.display = onboarding ? 'none' : 'inline-block';
   renderSettingsProviders();
   openModal('settingsModal');
 }
@@ -1562,10 +1909,10 @@ function renderSettingsProviders(){
       </div>
       <input type="text" class="input-line" style="margin-top:8px" placeholder="Modelo (opcional) — por defecto: ${p.defaultModel}" value="${escapeHtml(model)}" oninput="updateModel('${id}', this.value)">
       <div class="provider-actions">
-        <button class="btn ghost small" onclick="testProviderConnection('${id}')">Probar conexión</button>
+        <button class="btn gold small" onclick="saveAndTestProvider('${id}')">Guardar y verificar conexión</button>
         <button class="btn ghost small" onclick="removeKey('${id}')" ${hasKey?'':'disabled'}>Eliminar clave</button>
-        <span class="provider-status" id="status_${id}"></span>
       </div>
+      <div class="provider-status" id="status_${id}"></div>
     </div>`;
   }).join('');
 }
@@ -1597,16 +1944,40 @@ function removeKey(id){
   toast(AI_PROVIDERS[id].name + ': clave eliminada');
   renderSettingsProviders();
 }
-async function testProviderConnection(id){
+
+/**
+ * Botón único "Guardar y verificar conexión": toma los valores actuales de
+ * los campos (por si el navegador rellenó autocompletado sin disparar el
+ * evento input), los guarda de inmediato en localStorage y hace una llamada
+ * mínima real al proveedor para confirmar que la clave y el modelo funcionan.
+ * Funciona igual para los cuatro proveedores, sin importar el expediente
+ * activo, y muestra el mensaje de error real que devuelva el proveedor.
+ */
+async function saveAndTestProvider(id){
+  const keyInput = document.getElementById('key_' + id);
+  const modelInput = keyInput.closest('.provider-block').querySelector('input[type="text"]');
+  SETTINGS.keys[id] = keyInput.value.trim();
+  SETTINGS.models[id] = modelInput.value.trim();
+  saveSettings();
+  renderSettingsProviders(); // refresca el estado de "Eliminar clave", etc.
+
   const status = document.getElementById('status_' + id);
-  status.textContent = 'Probando…'; status.className = 'provider-status testing';
+  status.textContent = 'Guardando y probando conexión…'; status.className = 'provider-status testing';
+
+  if(!SETTINGS.keys[id] && id !== 'anthropic'){
+    status.textContent = '✘ Falta la clave de API para poder probar la conexión.';
+    status.className = 'provider-status error';
+    return;
+  }
   try{
-    await callAI('Responde únicamente con la palabra OK.', 'Confirma la conexión.', 20, id);
-    status.textContent = '✔ Conectado'; status.className = 'provider-status ok';
-    toast(AI_PROVIDERS[id].name + ': conexión exitosa');
+    await callAI('Responde únicamente con la palabra OK.', 'Confirma la conexión.', 64, id);
+    status.textContent = '✔ Conectado correctamente';
+    status.className = 'provider-status ok';
+    toast(AI_PROVIDERS[id].name + ': clave guardada y conexión verificada');
   }catch(err){
-    status.textContent = '✘ Error de conexión'; status.className = 'provider-status error';
-    toast(AI_PROVIDERS[id].name + ': ' + err.message, true);
+    status.textContent = '✘ ' + err.message;
+    status.className = 'provider-status error';
+    toast(AI_PROVIDERS[id].name + ': fallo de conexión', true);
   }
 }
 
@@ -1674,7 +2045,25 @@ async function init(){
   renderCompanyList();
   renderActiveCompany();
 }
-init();
+
+/**
+ * Se dispara desde el módulo de Firebase (ver <script type="module"> arriba)
+ * cuando hay una sesión válida. Inicializa la app una sola vez y, si es la
+ * primera vez que este usuario entra desde este equipo/navegador, abre la
+ * configuración de IA en modo bienvenida (solo se pregunta una vez).
+ */
+let appInitialized = false;
+window.onNotariusUserReady = async function(user){
+  if(!appInitialized){
+    appInitialized = true;
+    await init();
+  }
+  const onboardKey = 'notarius_onboarded_' + user.uid;
+  if(!localStorage.getItem(onboardKey)){
+    localStorage.setItem(onboardKey, '1');
+    openSettings(true);
+  }
+};
 </script>
 </body>
 </html>
