@@ -459,7 +459,7 @@ input:-webkit-autofill, input:-webkit-autofill:hover, input:-webkit-autofill:foc
 .hist-body .htime{font-size:11px; color:var(--muted); font-family:var(--mono); margin-top:2px;}
 
 /* ---------- Pantalla de acceso (Firebase Auth) ---------- */
-#authScreen{
+#authGateOverlay{
   position:fixed; inset:0; z-index:300;
   background:var(--paper);
   background-image: linear-gradient(var(--paper-2) 1px, transparent 1px);
@@ -522,43 +522,45 @@ input:-webkit-autofill, input:-webkit-autofill:hover, input:-webkit-autofill:foc
 </head>
 <body>
 
-<!-- ============ PANTALLA DE ACCESO (Firebase Auth) ============ -->
-<div id="authScreen">
+<!-- ============ GATE DE ACCESO (arquitectura idéntica a Nexus Advance) ============ -->
+<!-- La configuración de Firebase se captura por window.prompt() la primera vez en
+     cada dispositivo (ver script de Firebase más abajo) — nunca vive en este archivo. -->
+<div id="authGateOverlay" style="display:none;">
   <div class="auth-card">
     <div class="auth-brand">
       <div class="seal-mark">N</div>
       <h1>Notarius IA</h1>
-      <span>Acceso al expediente corporativo</span>
+      <span>Inicia sesión para continuar</span>
     </div>
+    <p style="font-size:12.5px; color:var(--ink-soft); line-height:1.5; margin:-8px 0 16px 0; text-align:center;">
+      Tus expedientes y claves de IA se guardan de forma segura y sincronizada entre tus dispositivos.
+    </p>
 
-    <div class="auth-tabs">
-      <button class="auth-tab active" id="tabLogin" onclick="setAuthMode('login')">Iniciar sesión</button>
-      <button class="auth-tab" id="tabRegister" onclick="setAuthMode('register')">Crear cuenta</button>
-    </div>
-
-    <div class="auth-error" id="authError"></div>
-
-    <div class="auth-field">
-      <label>Correo electrónico</label>
-      <input type="email" class="input-line" id="authEmail" placeholder="tucorreo@ejemplo.com" autocomplete="email">
-    </div>
-    <div class="auth-field">
-      <label>Contraseña</label>
-      <input type="password" class="input-line" id="authPassword" placeholder="••••••••" autocomplete="current-password">
-    </div>
-    <button class="auth-forgot" id="forgotBtn" onclick="handlePasswordReset()">¿Olvidaste tu contraseña?</button>
-
-    <button class="btn gold auth-submit" id="authSubmitBtn" onclick="handleAuthSubmit()">Iniciar sesión</button>
-
-    <div class="auth-divider">o</div>
-
-    <button class="google-btn" onclick="handleGoogleSignIn()">
+    <button class="google-btn" id="gateGoogleBtn" onclick="gateSignInGoogle()">
       <svg width="17" height="17" viewBox="0 0 48 48"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.9 32.4 29.4 35.5 24 35.5c-6.4 0-11.6-5.2-11.6-11.5S17.6 12.5 24 12.5c2.9 0 5.6 1.1 7.6 2.9l5.7-5.7C33.9 6.5 29.2 4.5 24 4.5 13.2 4.5 4.5 13.2 4.5 24S13.2 43.5 24 43.5 43.5 34.8 43.5 24c0-1.2-.1-2.4-.3-3.5z"/><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.6 15.9 18.9 12.5 24 12.5c2.9 0 5.6 1.1 7.6 2.9l5.7-5.7C33.9 6.5 29.2 4.5 24 4.5c-7.9 0-14.7 4.5-17.7 11.1z"/><path fill="#4CAF50" d="M24 43.5c5.1 0 9.8-2 13.3-5.2l-6.1-5.2c-2 1.4-4.6 2.3-7.2 2.3-5.3 0-9.8-3.6-11.4-8.4l-6.5 5C9.2 39 16 43.5 24 43.5z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.7 2-1.9 3.7-3.5 5l6.1 5.2C41 34.5 43.5 29.6 43.5 24c0-1.2-.1-2.4-.3-3.5z"/></svg>
       Continuar con Google
     </button>
 
-    <div class="auth-switch" id="authSwitchLine">
-      ¿No tienes cuenta? <button onclick="setAuthMode('register')">Créala aquí</button>
+    <div class="auth-divider">o con tu correo</div>
+
+    <div class="auth-field">
+      <input type="email" class="input-line" id="gateEmail" placeholder="tu@email.com" autocomplete="email">
+    </div>
+    <div class="auth-field">
+      <input type="password" class="input-line" id="gatePass" placeholder="Contraseña (mínimo 6 caracteres)" autocomplete="current-password">
+    </div>
+    <div style="display:flex; gap:10px;">
+      <button class="btn gold" style="flex:1" id="gateLoginBtn" onclick="gateSignInEmail()">Iniciar sesión</button>
+      <button class="btn ghost" style="flex:1" id="gateRegisterBtn" onclick="gateRegisterEmail()">Crear cuenta</button>
+    </div>
+
+    <div class="auth-divider">o sin contraseña</div>
+    <button class="btn ghost auth-submit" id="gateLinkBtn" onclick="gateSendEmailLink()">✉️ Enviarme un enlace de acceso</button>
+
+    <div class="auth-error" id="gateMsg" style="margin-top:14px;"></div>
+
+    <div class="auth-switch">
+      <button onclick="resetFirebaseConfig()">Corregir configuración de Firebase de este dispositivo</button>
     </div>
   </div>
 </div>
@@ -729,7 +731,7 @@ input:-webkit-autofill, input:-webkit-autofill:hover, input:-webkit-autofill:foc
     <div class="modal-scroll">
 
       <div class="info-banner" id="onboardingBanner" style="display:none;">
-        Bienvenido a Notarius IA. Conecta al menos un proveedor de IA para usar el análisis legal, la asesoría de negocio y el generador de documentos. Esto solo se pide una vez en este dispositivo — puedes cambiarlo después desde ⚙️ Configuración.
+        Bienvenido a Notarius IA. Conecta al menos un proveedor de IA para usar el análisis legal, la asesoría de negocio y el generador de documentos. Tus claves quedan sincronizadas con tu cuenta — puedes cambiarlas después desde ⚙️ Configuración.
       </div>
 
       <div class="settings-section-title">🧠 Inteligencia artificial predeterminada</div>
@@ -769,139 +771,234 @@ input:-webkit-autofill, input:-webkit-autofill:hover, input:-webkit-autofill:foc
 
 <div id="toastHost"></div>
 
-<!-- ============ FIREBASE (autenticación) ============ -->
-<script type="module">
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-app.js";
-  import {
-    getAuth, onAuthStateChanged, setPersistence, browserLocalPersistence,
-    signInWithEmailAndPassword, createUserWithEmailAndPassword,
-    GoogleAuthProvider, signInWithPopup, signOut, sendPasswordResetEmail
-  } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-auth.js";
+<!-- ============ FIREBASE (SDK compat, arquitectura idéntica a Nexus Advance) ============ -->
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-analytics-compat.js"></script>
+<script>
+// ════════════════════════════════════════════════════════════════════════════
+// FIREBASE — arquitectura portada tal cual de Nexus Advance:
+//  • La configuración de Firebase NUNCA se escribe en este archivo (repo público
+//    en GitHub). Se pide por window.prompt() una sola vez por dispositivo/
+//    navegador y se guarda en localStorage, versionada por projectId: si el
+//    proyecto de Firebase cambia en el futuro, se vuelve a pedir automáticamente
+//    (una sola vez) en cada dispositivo.
+//  • Auth: gate obligatorio (Google / correo+contraseña / enlace por correo).
+//  • Firestore: un documento por usuario en usuarios/{uid} donde se sincroniza
+//    el campo apiKeys (las 4 claves de IA) y models (modelo elegido por
+//    proveedor), para no tener que volver a capturarlas en cada dispositivo.
+//    Escrituras debounced (600ms) y listener onSnapshot para mantener varias
+//    pestañas/dispositivos sincronizados, ignorando los ecos de escrituras propias.
+// ════════════════════════════════════════════════════════════════════════════
+const FIREBASE_PROJECT_ID_VIGENTE = 'nexus-advance-ff1aa';
 
-  // Configuración del proyecto Firebase de Eddy (Nexus Advance / suite AVA)
-  const firebaseConfig = {
-    apiKey: "AIzaSyCQ-C8Td92ki5ZnnVnUxQFCj4q3vZ-MzdY",
-    authDomain: "nexus-advance-ff1aa.firebaseapp.com",
-    projectId: "nexus-advance-ff1aa",
-    storageBucket: "nexus-advance-ff1aa.firebasestorage.app",
-    messagingSenderId: "1048429564329",
-    appId: "1:1048429564329:web:31af3c141375cf60baf4b8",
-    measurementId: "G-BDYD1TBQRD"
-  };
-
-  const fbApp = initializeApp(firebaseConfig);
-  const auth = getAuth(fbApp);
-  // Analytics es opcional y no debe romper el arranque si el dominio no está verificado.
-  import("https://www.gstatic.com/firebasejs/10.13.2/firebase-analytics.js")
-    .then(({ getAnalytics }) => { try{ getAnalytics(fbApp); }catch(e){} })
-    .catch(()=>{ /* analytics no disponible en este entorno, se ignora */ });
-
-  // Mantener la sesión iniciada en este navegador entre visitas.
-  setPersistence(auth, browserLocalPersistence).catch(()=>{});
-
-  let authMode = 'login'; // 'login' | 'register'
-
-  window.setAuthMode = function(mode){
-    authMode = mode;
-    document.getElementById('tabLogin').classList.toggle('active', mode==='login');
-    document.getElementById('tabRegister').classList.toggle('active', mode==='register');
-    document.getElementById('authSubmitBtn').textContent = mode==='login' ? 'Iniciar sesión' : 'Crear cuenta';
-    document.getElementById('forgotBtn').style.display = mode==='login' ? 'block' : 'none';
-    document.getElementById('authSwitchLine').innerHTML = mode==='login'
-      ? '¿No tienes cuenta? <button onclick="setAuthMode(\'register\')">Créala aquí</button>'
-      : '¿Ya tienes cuenta? <button onclick="setAuthMode(\'login\')">Inicia sesión</button>';
-    hideAuthError();
-  };
-
-  function showAuthError(message){
-    const el = document.getElementById('authError');
-    el.textContent = message;
-    el.classList.add('show');
+const firebaseConfig = (function(){
+  var LS_KEY = 'fbcfg_notarius_ia';
+  var saved = null;
+  try { saved = JSON.parse(localStorage.getItem(LS_KEY) || 'null'); } catch(e) { saved = null; }
+  if (saved && saved.apiKey && saved.projectId === FIREBASE_PROJECT_ID_VIGENTE) return saved;
+  if (saved && saved.apiKey && saved.projectId !== FIREBASE_PROJECT_ID_VIGENTE) {
+    // Configuración de un proyecto de Firebase anterior/distinto: se descarta
+    // para forzar a pedir la del proyecto vigente (solo pasa una vez por
+    // dispositivo; después vuelve a quedar guardada como siempre).
+    localStorage.removeItem(LS_KEY);
   }
-  function hideAuthError(){
-    document.getElementById('authError').classList.remove('show');
-  }
-
-  function friendlyAuthError(err){
-    const map = {
-      'auth/invalid-email':'El correo electrónico no es válido.',
-      'auth/user-not-found':'No existe una cuenta con ese correo.',
-      'auth/wrong-password':'Contraseña incorrecta.',
-      'auth/invalid-credential':'Correo o contraseña incorrectos.',
-      'auth/email-already-in-use':'Ya existe una cuenta con ese correo. Intenta iniciar sesión.',
-      'auth/weak-password':'La contraseña debe tener al menos 6 caracteres.',
-      'auth/popup-closed-by-user':'Se cerró la ventana de Google antes de completar el acceso.',
-      'auth/network-request-failed':'Falla de red. Verifica tu conexión e intenta de nuevo.',
-      'auth/too-many-requests':'Demasiados intentos. Espera unos minutos e intenta de nuevo.'
-    };
-    return map[err.code] || ('No se pudo completar la operación: ' + (err.message || err.code));
-  }
-
-  window.handleAuthSubmit = async function(){
-    hideAuthError();
-    const email = document.getElementById('authEmail').value.trim();
-    const password = document.getElementById('authPassword').value;
-    if(!email || !password){ showAuthError('Ingresa tu correo y contraseña.'); return; }
-    const btn = document.getElementById('authSubmitBtn');
-    btn.disabled = true; const original = btn.textContent; btn.textContent = 'Procesando…';
-    try{
-      if(authMode === 'login'){
-        await signInWithEmailAndPassword(auth, email, password);
-      } else {
-        await createUserWithEmailAndPassword(auth, email, password);
+  for (var intento = 0; intento < 3; intento++) {
+    var pasted = window.prompt('Configuración de Firebase para Notarius IA (solo la primera vez en este dispositivo).\nPega aquí el JSON de configuración (debe empezar con { y llevar comillas en los nombres de los campos):');
+    if (!pasted) break;
+    try {
+      var cfg = JSON.parse(pasted);
+      if (!cfg.apiKey) {
+        window.alert('Ese texto es JSON válido pero le falta el campo "apiKey". Revisa que copiaste el bloque completo e intenta de nuevo.');
+        continue;
       }
-      // onAuthStateChanged se encarga de mostrar la app.
-    }catch(err){
-      showAuthError(friendlyAuthError(err));
-    }finally{
-      btn.disabled = false; btn.textContent = original;
+      localStorage.setItem(LS_KEY, JSON.stringify(cfg));
+      return cfg;
+    } catch(e) {
+      window.alert('El texto pegado no es un JSON válido. Debe verse así (con comillas en TODOS los nombres de campo):\n{"apiKey":"...","authDomain":"...","projectId":"...","storageBucket":"...","messagingSenderId":"...","appId":"..."}\n\nIntenta de nuevo.');
     }
-  };
+  }
+  window.alert('No se configuró Firebase para Notarius IA. La app seguirá funcionando localmente, sin sincronización, hasta que recargues la página y lo captures correctamente.');
+  return { apiKey:'', authDomain:'', projectId:'', storageBucket:'', messagingSenderId:'', appId:'' };
+})();
 
-  window.handleGoogleSignIn = async function(){
-    hideAuthError();
-    try{
-      const provider = new GoogleAuthProvider();
-      await signInWithPopup(auth, provider);
-    }catch(err){
-      showAuthError(friendlyAuthError(err));
+window.resetFirebaseConfig = function(){
+  if(!confirm('Esto borrará la configuración de Firebase guardada en este navegador y recargará la página. ¿Continuar?')) return;
+  localStorage.removeItem('fbcfg_notarius_ia');
+  location.reload();
+};
+
+let fbAuth=null, fbDb=null, fbUser=null, fbUserDocRef=null, fbCloudReady=false;
+let fbSyncTimer=null, fbApplyingRemote=false;
+const FB_PENDING={};
+
+// ─── Auth Gate ──────────────────────────────────────────────────────────────
+function showAuthGate(){ const el=document.getElementById('authGateOverlay'); if(el) el.style.display='flex'; }
+function hideAuthGate(){ const el=document.getElementById('authGateOverlay'); if(el) el.style.display='none'; }
+function gateMsg(text, isError){
+  const m=document.getElementById('gateMsg'); if(!m) return;
+  m.textContent = text||'';
+  m.classList.toggle('show', !!text);
+  m.style.color = isError ? '' : 'var(--ok)';
+}
+window.gateSignInGoogle = async function(){
+  try{ await fbAuth.signInWithPopup(new firebase.auth.GoogleAuthProvider()); }
+  catch(e){ gateMsg('No se pudo iniciar sesión con Google: '+(e.message||e.code), true); }
+};
+window.gateSignInEmail = async function(){
+  const email=(document.getElementById('gateEmail').value||'').trim();
+  const pass=document.getElementById('gatePass').value||'';
+  if(!email||!pass){ gateMsg('Escribe correo y contraseña.', true); return; }
+  try{ await fbAuth.signInWithEmailAndPassword(email, pass); }
+  catch(e){ gateMsg('No se pudo iniciar sesión: '+(e.message||e.code), true); }
+};
+window.gateRegisterEmail = async function(){
+  const email=(document.getElementById('gateEmail').value||'').trim();
+  const pass=document.getElementById('gatePass').value||'';
+  if(!email||!pass){ gateMsg('Escribe correo y contraseña.', true); return; }
+  try{ await fbAuth.createUserWithEmailAndPassword(email, pass); }
+  catch(e){
+    if(e.code==='auth/email-already-in-use') gateMsg('Ese correo ya tiene cuenta. Usa "Iniciar sesión".', true);
+    else if(e.code==='auth/weak-password') gateMsg('La contraseña debe tener al menos 6 caracteres.', true);
+    else gateMsg('No se pudo crear la cuenta: '+(e.message||e.code), true);
+  }
+};
+window.gateSendEmailLink = async function(){
+  const email=(document.getElementById('gateEmail').value||'').trim();
+  if(!email){ gateMsg('Escribe tu correo para enviarte el enlace.', true); return; }
+  const actionCodeSettings = { url: window.location.href.split('#')[0], handleCodeInApp: true };
+  try{
+    await fbAuth.sendSignInLinkToEmail(email, actionCodeSettings);
+    window.localStorage.setItem('notariusAuthGateEmail', email);
+    gateMsg('✅ Te enviamos un enlace a '+email+'. Ábrelo desde este mismo navegador para entrar.', false);
+  }catch(e){ gateMsg('No se pudo enviar el enlace: '+(e.message||e.code), true); }
+};
+async function gateCompleteEmailLinkIfNeeded(){
+  try{
+    if(fbAuth.isSignInWithEmailLink(window.location.href)){
+      let email = window.localStorage.getItem('notariusAuthGateEmail');
+      if(!email) email = window.prompt('Confirma tu correo para completar el acceso:');
+      if(email){
+        await fbAuth.signInWithEmailLink(email, window.location.href);
+        window.localStorage.removeItem('notariusAuthGateEmail');
+        window.history.replaceState({}, document.title, window.location.pathname);
+      }
     }
-  };
+  }catch(e){ console.warn('[Nube] No se pudo completar el acceso por enlace:', e); }
+}
+window.handleLogout = function(){
+  fbAuth.signOut(); // onAuthStateChanged detecta el logout y vuelve a mostrar el gate
+};
 
-  window.handlePasswordReset = async function(){
-    hideAuthError();
-    const email = document.getElementById('authEmail').value.trim();
-    if(!email){ showAuthError('Escribe tu correo arriba y vuelve a presionar "¿Olvidaste tu contraseña?".'); return; }
-    try{
-      await sendPasswordResetEmail(auth, email);
-      showAuthError('Te enviamos un correo para restablecer tu contraseña.');
-    }catch(err){
-      showAuthError(friendlyAuthError(err));
-    }
-  };
-
-  window.handleLogout = async function(){
-    await signOut(auth);
-  };
-
-  onAuthStateChanged(auth, (user)=>{
-    const authScreen = document.getElementById('authScreen');
-    const app = document.getElementById('app');
-    if(user){
-      authScreen.style.display = 'none';
-      app.classList.add('visible');
-      document.body.classList.add('authenticated');
-      const email = user.email || (user.providerData[0] && user.providerData[0].email) || 'Sesión activa';
-      document.getElementById('userEmail').textContent = email;
-      document.getElementById('userAvatar').textContent = email.charAt(0).toUpperCase();
-      // Notificar al resto de la app (definido en app.js) que ya hay sesión.
-      if(window.onNotariusUserReady) window.onNotariusUserReady(user);
+// ─── Firestore: sincronización del documento usuarios/{uid} ─────────────────
+async function fbLoadRemoteState(){
+  try{
+    const snap = await fbUserDocRef.get();
+    if(snap.exists){
+      fbApplyRemoteData(snap.data());
     } else {
-      authScreen.style.display = 'flex';
-      app.classList.remove('visible');
-      document.body.classList.remove('authenticated');
+      await fbUserDocRef.set({ creado: firebase.firestore.FieldValue.serverTimestamp() }, {merge:true});
     }
-  });
+  }catch(e){ console.warn('[Nube] No se pudo leer el estado remoto:', e); }
+}
+function fbListenRemoteState(){
+  fbUserDocRef.onSnapshot(snap=>{
+    if(snap.metadata.hasPendingWrites) return; // eco de nuestra propia escritura: ignorar
+    if(snap.exists) fbApplyRemoteData(snap.data());
+  }, err=>console.warn('[Nube] Error en la sincronización en vivo:', err));
+}
+function fbApplyRemoteData(d){
+  fbApplyingRemote = true;
+  try{
+    if(d.apiKeys && typeof d.apiKeys==='object'){
+      Object.keys(d.apiKeys).forEach(id=>{
+        if(AI_PROVIDERS[id] && typeof d.apiKeys[id]==='string' && d.apiKeys[id] !== SETTINGS.keys[id]){
+          SETTINGS.keys[id] = d.apiKeys[id];
+        }
+      });
+    }
+    if(d.models && typeof d.models==='object'){
+      Object.keys(d.models).forEach(id=>{
+        if(AI_PROVIDERS[id] && typeof d.models[id]==='string'){
+          SETTINGS.models[id] = d.models[id];
+        }
+      });
+    }
+    saveSettings();
+    if(document.getElementById('providerBlocks')) renderSettingsProviders();
+  } finally { fbApplyingRemote = false; }
+}
+function fbQueueWrite(fields){
+  if(fbApplyingRemote) return; // no reenviar lo que acabamos de recibir de la nube
+  Object.assign(FB_PENDING, fields);
+  if(fbSyncTimer) clearTimeout(fbSyncTimer);
+  fbSyncTimer = setTimeout(fbFlushWrites, 600);
+}
+async function fbFlushWrites(){
+  if(!fbUserDocRef) return;
+  const payload = {...FB_PENDING};
+  Object.keys(FB_PENDING).forEach(k=>delete FB_PENDING[k]);
+  try{ await fbUserDocRef.set(payload, {merge:true}); }catch(e){ console.warn('[Nube] Error guardando en la nube:', e); }
+}
+// Se llama cada vez que se guarda o elimina una clave/modelo de IA (ver saveAndTestProvider/removeKey).
+window.fbSyncApiKeys = function(){
+  fbQueueWrite({apiKeys: {...SETTINGS.keys}, models: {...SETTINGS.models}});
+};
+
+// ─── Arranque ─────────────────────────────────────────────────────────────
+function initFirebaseCloud(){
+  if(typeof firebase==='undefined' || !firebaseConfig || !firebaseConfig.apiKey){
+    showAuthGate();
+    gateMsg('Falta la configuración de Firebase. Recarga la página para volver a capturarla.', true);
+    return;
+  }
+  try{
+    firebase.initializeApp(firebaseConfig);
+    try{ firebase.analytics(); }catch(e){}
+    fbAuth = firebase.auth();
+    fbDb = firebase.firestore();
+    fbDb.enablePersistence({synchronizeTabs:true}).catch(err=>{
+      console.warn('[Nube] Persistencia offline no disponible:', err.code||err);
+    });
+    gateCompleteEmailLinkIfNeeded().catch(()=>{}).finally(()=>{
+      fbAuth.onAuthStateChanged(async (user)=>{
+        if(user){
+          hideAuthGate();
+          fbUser = user;
+          document.getElementById('app').classList.add('visible');
+          document.body.classList.add('authenticated');
+          const email = user.email || (user.providerData[0] && user.providerData[0].email) || 'Sesión activa';
+          const userEmailEl = document.getElementById('userEmail');
+          const userAvatarEl = document.getElementById('userAvatar');
+          if(userEmailEl) userEmailEl.textContent = email;
+          if(userAvatarEl) userAvatarEl.textContent = email.charAt(0).toUpperCase();
+
+          fbUserDocRef = fbDb.collection('usuarios').doc(user.uid);
+          await fbLoadRemoteState();
+          fbListenRemoteState();
+          fbCloudReady = true;
+
+          // Notificar al resto de la app (definido en app.js) que ya hay sesión.
+          if(window.onNotariusUserReady) window.onNotariusUserReady(user);
+        } else {
+          fbCloudReady = false;
+          document.getElementById('app').classList.remove('visible');
+          document.body.classList.remove('authenticated');
+          showAuthGate();
+        }
+      }, (err)=>{
+        showAuthGate();
+        gateMsg('Error de sesión: '+(err.message||err.code||err), true);
+      });
+    });
+  }catch(e){
+    showAuthGate();
+    gateMsg('No se pudo inicializar Firebase: '+(e.message||e), true);
+    console.warn('[Nube] Firebase falló al inicializar:', e);
+  }
+}
+document.addEventListener('DOMContentLoaded', initFirebaseCloud);
 </script>
 
 <!-- ============ LIBRERÍAS EXTERNAS (CDN) ============ -->
@@ -1249,41 +1346,62 @@ async function removeDoc(docId){
    Soporta Claude (Anthropic), ChatGPT (OpenAI), Gemini (Google)
    y Grok (xAI). El usuario define su proveedor predeterminado
    y sus propias claves desde el botón de Configuración (⚙️).
-   Las claves solo se guardan en localStorage de este navegador
-   y solo viajan directamente del navegador al proveedor elegido.
+   Las claves se guardan en localStorage de este navegador y,
+   una vez con sesión iniciada, también se sincronizan a Firestore
+   (documento usuarios/{uid}) para no tener que volver a capturarlas
+   en otro equipo con la misma cuenta — ver fbSyncApiKeys() en el
+   bloque de Firebase. Las llamadas a cada proveedor de IA siempre
+   viajan directo del navegador al proveedor elegido.
    --------------------------------------------------------- */
+// Listas de modelos con fallback automático: si el modelo preferido no está
+// disponible (HTTP 404), se prueba el siguiente sin que el usuario tenga que
+// hacer nada — misma idea que en el resto de la suite AVA.
+const MODEL_FALLBACKS = {
+  anthropic: ['claude-sonnet-5', 'claude-sonnet-4-6'],
+  openai:    ['gpt-5.1', 'gpt-5', 'gpt-4o'],
+  google:    ['gemini-3.6-flash', 'gemini-2.5-flash', 'gemini-2.0-flash'],
+  xai:       ['grok-4.3', 'grok-3-mini', 'grok-2-latest']
+};
+
 const AI_PROVIDERS = {
   anthropic:{
     name:'Claude (Anthropic)',
-    defaultModel:'claude-sonnet-4-6',
+    defaultModel:'claude-sonnet-5',
     keyPlaceholder:'sk-ant-…',
     buildRequest(system, userMsg, maxTokens, key, model, opts={}){
       const headers = {'Content-Type':'application/json'};
+      let m = model || this.defaultModel;
       if(key){
         headers['x-api-key'] = key;
         headers['anthropic-version'] = '2023-06-01';
         headers['anthropic-dangerous-direct-browser-access'] = 'true';
+      } else {
+        // La vía sin clave solo funciona dentro de la vista previa de artefactos
+        // de Claude.ai, y únicamente con este modelo específico.
+        m = 'claude-sonnet-4-6';
       }
       return {
         url:'https://api.anthropic.com/v1/messages',
         headers,
-        body: JSON.stringify({model: model||this.defaultModel, max_tokens:maxTokens, system, messages:[{role:'user', content:userMsg}]})
+        body: JSON.stringify({model: m, max_tokens:maxTokens, system, messages:[{role:'user', content:userMsg}]})
       };
     },
     parse(json){
       if(json && json.type === 'error'){
         throw new Error(json.error?.message || 'Error desconocido de Anthropic.');
       }
-      return (json.content||[]).filter(b=>b.type==='text').map(b=>b.text).join('\n').trim();
+      const text = (json.content||[]).filter(b=>b.type==='text').map(b=>b.text).join('\n').trim();
+      if(!text) throw new Error('Anthropic no devolvió contenido de texto.');
+      return text;
     }
   },
   openai:{
     name:'ChatGPT (OpenAI)',
-    defaultModel:'gpt-4o',
+    defaultModel:'gpt-5.1',
     keyPlaceholder:'sk-…',
     // altTokenParam: algunos modelos (familia "o", modelos de razonamiento) exigen
     // "max_completion_tokens" en vez de "max_tokens". Reintentamos con el nombre
-    // alterno automáticamente si el proveedor lo rechaza (ver callAI).
+    // alterno automáticamente si el proveedor lo rechaza.
     buildRequest(system, userMsg, maxTokens, key, model, opts={}){
       const body = {model: model||this.defaultModel, messages:[{role:'system',content:system},{role:'user',content:userMsg}]};
       if(opts.altTokenParam) body.max_completion_tokens = maxTokens; else body.max_tokens = maxTokens;
@@ -1306,14 +1424,16 @@ const AI_PROVIDERS = {
   },
   google:{
     name:'Gemini (Google)',
-    defaultModel:'gemini-2.0-flash',
+    defaultModel:'gemini-3.6-flash',
     keyPlaceholder:'AIza…',
     buildRequest(system, userMsg, maxTokens, key, model, opts={}){
       // Aceptar tanto "gemini-2.0-flash" como "models/gemini-2.0-flash" si lo pegan tal cual de la documentación.
       const m = (model || this.defaultModel).replace(/^models\//,'');
       return {
-        url:`https://generativelanguage.googleapis.com/v1beta/models/${m}:generateContent?key=${key}`,
-        headers:{'Content-Type':'application/json'},
+        // La clave se envía en el header x-goog-api-key (igual que Claude/ChatGPT/Grok)
+        // en vez de como parámetro en la URL — más consistente y evita que quede en logs.
+        url:`https://generativelanguage.googleapis.com/v1beta/models/${m}:generateContent`,
+        headers:{'Content-Type':'application/json','x-goog-api-key':key},
         body: JSON.stringify({
           systemInstruction:{parts:[{text:system}]},
           contents:[{role:'user', parts:[{text:userMsg}]}],
@@ -1339,7 +1459,7 @@ const AI_PROVIDERS = {
   },
   xai:{
     name:'Grok (xAI)',
-    defaultModel:'grok-2-latest',
+    defaultModel:'grok-4.3',
     keyPlaceholder:'xai-…',
     buildRequest(system, userMsg, maxTokens, key, model, opts={}){
       const body = {model: model||this.defaultModel, messages:[{role:'system',content:system},{role:'user',content:userMsg}]};
@@ -1378,6 +1498,7 @@ function loadSettings(){
 function saveSettings(){
   localStorage.setItem('notarius_settings', JSON.stringify(SETTINGS));
 }
+function sleep(ms){ return new Promise(res=>setTimeout(res, ms)); }
 
 /**
  * Extrae un mensaje de error legible del cuerpo de una respuesta HTTP fallida,
@@ -1408,49 +1529,123 @@ function statusHint(status){
   return '';
 }
 
-/**
- * Llama al proveedor de IA configurado (o al indicado en providerOverride).
- * Si es Claude y no hay clave configurada, intenta la vía sin clave que
- * funciona únicamente dentro de la vista previa de artefactos de Claude.ai;
- * fuera de ese entorno (app publicada en tu propio hosting) necesitarás
- * configurar tu propia clave desde el botón ⚙️ Configuración.
- * Maneja de forma uniforme los errores de red, HTTP y de contenido de
- * cualquier proveedor, y reintenta automáticamente variantes conocidas de
- * parámetros (por ejemplo max_tokens vs. max_completion_tokens en OpenAI/xAI).
- */
-async function callAI(systemPrompt, userMessage, maxTokens=2000, providerOverride=null){
-  const providerId = providerOverride || SETTINGS.defaultProvider || 'anthropic';
-  const provider = AI_PROVIDERS[providerId];
-  if(!provider) throw new Error('Proveedor de IA no reconocido: ' + providerId);
-  const key = (SETTINGS.keys[providerId] || '').trim();
-  const model = (SETTINGS.models[providerId] || '').trim();
-  if(!key && providerId !== 'anthropic'){
-    throw new Error(`Configura tu API key de ${provider.name} en ⚙️ Configuración antes de continuar.`);
-  }
-  return await callProviderWithRetry(provider, providerId, systemPrompt, userMessage, maxTokens, key, model);
+/** Arma la lista de modelos a intentar para un proveedor: el que el usuario
+ * haya escrito en Configuración primero (si escribió alguno), seguido de los
+ * modelos de respaldo conocidos. Para Claude sin clave, solo el modelo
+ * compatible con la vista previa sin clave de Claude.ai. */
+function buildModelList(providerId, preferredModel, key){
+  if(providerId === 'anthropic' && !key) return ['claude-sonnet-4-6'];
+  const fallbacks = MODEL_FALLBACKS[providerId] || [];
+  return preferredModel ? [preferredModel, ...fallbacks.filter(m=>m!==preferredModel)] : [...fallbacks];
 }
 
-async function callProviderWithRetry(provider, providerId, systemPrompt, userMessage, maxTokens, key, model, opts={}){
-  const req = provider.buildRequest(systemPrompt, userMessage, maxTokens, key, model, opts);
-  let response;
-  try{
-    response = await fetch(req.url, {method:'POST', headers:req.headers, body:req.body});
-  }catch(networkErr){
-    throw new Error(`No se pudo contactar a ${provider.name}. Verifica tu conexión a internet, o si el proveedor bloquea llamadas directas desde el navegador (CORS) — en ese caso necesitarías un proxy propio.`);
-  }
-  if(!response.ok){
-    const msg = await parseErrorMessage(response);
-    // Compatibilidad automática: reintenta una vez con "max_completion_tokens"
-    // si el proveedor (OpenAI/xAI) rechazó "max_tokens" para ese modelo.
-    const canRetryTokenParam = (providerId === 'openai' || providerId === 'xai') && !opts.altTokenParam && /max_tokens/i.test(msg);
-    if(canRetryTokenParam){
-      return await callProviderWithRetry(provider, providerId, systemPrompt, userMessage, maxTokens, key, model, {altTokenParam:true});
+/**
+ * Intenta, en orden, cada modelo de la lista de respaldo de un proveedor.
+ * Ante HTTP 404 pasa al siguiente modelo; ante 429 reintenta con backoff
+ * (usando Retry-After si el proveedor lo manda); ante 401/403 se detiene de
+ * inmediato (la clave está mal, reintentar con otro modelo no ayuda). Nunca
+ * lanza una excepción: siempre devuelve {ok, text} o {error, message}, para
+ * que el orquestador de proveedores pueda decidir si prueba el siguiente.
+ */
+async function callProviderWithModelFallback(providerId, systemPrompt, userMessage, maxTokens, key, preferredModel, opts={}){
+  const provider = AI_PROVIDERS[providerId];
+  const models = buildModelList(providerId, preferredModel, key);
+  const maxRetries = opts.maxRetries ?? 1;
+  let lastMsg = null, lastStatus = null;
+
+  for(const model of models){
+    for(let attempt=0; attempt<=maxRetries; attempt++){
+      const req = provider.buildRequest(systemPrompt, userMessage, maxTokens, key, model, opts);
+      let response;
+      try{
+        response = await fetch(req.url, {method:'POST', headers:req.headers, body:req.body});
+      }catch(networkErr){
+        return {error:'NETWORK', message:`No se pudo contactar a ${provider.name}. Verifica tu conexión a internet, o si el proveedor bloquea llamadas directas desde el navegador (CORS) — en ese caso necesitarías un proxy propio.`};
+      }
+      if(response.status === 404) break; // probar el siguiente modelo de la lista
+      if(response.status === 429){
+        if(attempt < maxRetries){
+          const ra = parseInt(response.headers.get('Retry-After')||'0', 10);
+          await sleep((ra || Math.pow(2, attempt) * 3) * 1000);
+          continue;
+        }
+        return {error:'RATE_LIMIT', message:`${provider.name} — HTTP 429: límite de uso o cuota alcanzado (frecuente en planes gratuitos); espera unos minutos e intenta de nuevo.`};
+      }
+      if(!response.ok){
+        const msg = await parseErrorMessage(response);
+        // Compatibilidad automática: reintenta con "max_completion_tokens" si
+        // el proveedor (OpenAI/xAI) rechazó "max_tokens" para ese modelo.
+        const canRetryTokenParam = (providerId === 'openai' || providerId === 'xai') && !opts.altTokenParam && /max_tokens/i.test(msg);
+        if(canRetryTokenParam){
+          return await callProviderWithModelFallback(providerId, systemPrompt, userMessage, maxTokens, key, model, {...opts, altTokenParam:true, maxRetries});
+        }
+        if(response.status === 401 || response.status === 403){
+          return {error:'INVALID_KEY', message:`${provider.name} — HTTP ${response.status}: ${msg}${statusHint(response.status)}`};
+        }
+        lastMsg = msg; lastStatus = response.status;
+        break; // otros errores 4xx/5xx: probar el siguiente modelo por si acaso
+      }
+      const data = await response.json();
+      try{
+        const text = provider.parse(data);
+        return {ok:true, text, label:provider.name};
+      }catch(parseErr){
+        lastMsg = parseErr.message;
+        break; // respuesta vacía/bloqueada: probar el siguiente modelo
+      }
     }
-    throw new Error(`${provider.name} — HTTP ${response.status}: ${msg}${statusHint(response.status)}`);
   }
-  const data = await response.json();
-  return provider.parse(data);
+  return {
+    error:'NO_MODEL',
+    message: lastMsg ? `${provider.name} — HTTP ${lastStatus||''}: ${lastMsg}${statusHint(lastStatus)}` : `Ningún modelo de ${provider.name} respondió correctamente.`
+  };
 }
+
+/** Reordena para intentar primero el proveedor preferido del usuario en ⚙️
+ * Configuración, y los demás como respaldo — mismo criterio que el resto de
+ * la suite AVA (reordenarPorPreferenciaIA). */
+function buildProviderFallbackOrder(){
+  const preferred = SETTINGS.defaultProvider || 'anthropic';
+  return [preferred, ...PROVIDER_ORDER.filter(id => id !== preferred)];
+}
+
+/**
+ * Punto de entrada usado por el resto de la app (análisis legal, asesoría de
+ * negocio, generador de documentos, chat). Sin providerOverride: intenta el
+ * proveedor preferido y, si falla, cae automáticamente a los demás
+ * proveedores que tengan clave configurada — igual que callAIConFallback en
+ * el resto de la suite AVA. Con providerOverride (usado por el botón
+ * "Guardar y verificar conexión"): prueba solo ese proveedor puntual.
+ */
+async function callAI(systemPrompt, userMessage, maxTokens=2000, providerOverride=null){
+  if(providerOverride){
+    const provider = AI_PROVIDERS[providerOverride];
+    if(!provider) throw new Error('Proveedor de IA no reconocido: ' + providerOverride);
+    const key = (SETTINGS.keys[providerOverride] || '').trim();
+    const model = (SETTINGS.models[providerOverride] || '').trim();
+    if(!key && providerOverride !== 'anthropic'){
+      throw new Error(`Configura tu API key de ${provider.name} en ⚙️ Configuración antes de continuar.`);
+    }
+    const r = await callProviderWithModelFallback(providerOverride, systemPrompt, userMessage, maxTokens, key, model);
+    if(r.ok) return r.text;
+    throw new Error(r.message);
+  }
+
+  const order = buildProviderFallbackOrder();
+  let lastErr = null, triedAny = false;
+  for(const providerId of order){
+    const key = (SETTINGS.keys[providerId] || '').trim();
+    const model = (SETTINGS.models[providerId] || '').trim();
+    if(!key && providerId !== 'anthropic') continue; // sin clave configurada: se omite
+    triedAny = true;
+    const r = await callProviderWithModelFallback(providerId, systemPrompt, userMessage, maxTokens, key, model);
+    if(r.ok) return r.text;
+    lastErr = new Error(r.message);
+  }
+  if(!triedAny) throw new Error('No hay ningún proveedor de IA configurado. Ve a ⚙️ Configuración y agrega al menos una clave.');
+  throw lastErr || new Error('Todos los proveedores de IA configurados fallaron.');
+}
+
 
 function extractJson(raw){
   let s = raw.trim();
@@ -1939,9 +2134,10 @@ function toggleKeyVisibility(id){
 function removeKey(id){
   SETTINGS.keys[id] = '';
   saveSettings();
+  if(window.fbSyncApiKeys) window.fbSyncApiKeys();
   const status = document.getElementById('status_' + id);
   status.textContent = ''; status.className = 'provider-status';
-  toast(AI_PROVIDERS[id].name + ': clave eliminada');
+  toast(AI_PROVIDERS[id].name + ': clave eliminada (también en la nube)');
   renderSettingsProviders();
 }
 
@@ -1959,6 +2155,7 @@ async function saveAndTestProvider(id){
   SETTINGS.keys[id] = keyInput.value.trim();
   SETTINGS.models[id] = modelInput.value.trim();
   saveSettings();
+  if(window.fbSyncApiKeys) window.fbSyncApiKeys();
   renderSettingsProviders(); // refresca el estado de "Eliminar clave", etc.
 
   const status = document.getElementById('status_' + id);
@@ -2047,10 +2244,12 @@ async function init(){
 }
 
 /**
- * Se dispara desde el módulo de Firebase (ver <script type="module"> arriba)
- * cuando hay una sesión válida. Inicializa la app una sola vez y, si es la
- * primera vez que este usuario entra desde este equipo/navegador, abre la
- * configuración de IA en modo bienvenida (solo se pregunta una vez).
+ * Se dispara desde initFirebaseCloud() (ver script de Firebase más arriba)
+ * cuando hay una sesión válida y ya se cargaron las claves guardadas en la
+ * nube (fbLoadRemoteState). Inicializa la app una sola vez y, si al usuario
+ * no le quedó ninguna clave de IA configurada (ni local ni sincronizada
+ * desde otro dispositivo), abre la configuración en modo bienvenida — solo
+ * se pregunta una vez por cuenta/dispositivo.
  */
 let appInitialized = false;
 window.onNotariusUserReady = async function(user){
@@ -2059,9 +2258,12 @@ window.onNotariusUserReady = async function(user){
     await init();
   }
   const onboardKey = 'notarius_onboarded_' + user.uid;
-  if(!localStorage.getItem(onboardKey)){
+  const tieneAlgunaClave = Object.values(SETTINGS.keys).some(k => (k||'').trim().length > 0);
+  if(!localStorage.getItem(onboardKey) && !tieneAlgunaClave){
     localStorage.setItem(onboardKey, '1');
     openSettings(true);
+  } else if(!localStorage.getItem(onboardKey)){
+    localStorage.setItem(onboardKey, '1');
   }
 };
 </script>
