@@ -1133,7 +1133,7 @@ function toast(msg, isError=false){
   el.className = 'toast' + (isError ? ' error':'');
   el.textContent = msg;
   host.appendChild(el);
-  setTimeout(()=>{ el.remove(); }, 4200);
+  setTimeout(()=>{ el.remove(); }, isError ? 9000 : 4200);
 }
 function openModal(id){ document.getElementById(id).classList.add('open'); }
 function closeModal(id){ document.getElementById(id).classList.remove('open'); }
@@ -1245,44 +1245,70 @@ function hideProgress(){
   document.getElementById('ocrProgress').style.display = 'none';
 }
 
+function yieldToBrowser(){
+  // Deja que el navegador respire (repintar UI, liberar memoria) entre
+  // páginas. Sin esto, un PDF grande con muchas páginas de OCR puede
+  // congelar la pestaña y dar la sensación de que "no deja subir el archivo".
+  return new Promise(resolve=> setTimeout(resolve, 0));
+}
+
 async function processPdf(file, company){
   const docId = 'd_' + Date.now().toString(36) + Math.random().toString(36).slice(2,6);
-  setProgress(2, `Leyendo "${file.name}"…`);
+  const sizeMB = file.size / (1024*1024);
+  setProgress(2, `Leyendo "${file.name}" (${sizeMB.toFixed(1)} MB)…`);
+  if(sizeMB > 60){
+    toast(`"${file.name}" pesa ${sizeMB.toFixed(0)} MB — es un archivo grande, el procesamiento puede tardar varios minutos, sobre todo si requiere OCR. No cierres esta pestaña.`, false);
+  }
+  let ocrWorker = null;
   try{
     const buf = await file.arrayBuffer();
     const pdf = await pdfjsLib.getDocument({data: buf}).promise;
     const numPages = pdf.numPages;
     let fullText = '';
     let ocrPagesUsed = 0;
-    let ocrWorker = null;
+    let failedPages = 0;
+    // En documentos muy largos reducimos la escala de renderizado para OCR:
+    // baja el uso de memoria por página (canvas más pequeño) y evita que el
+    // navegador se quede sin RAM a mitad de un expediente extenso.
+    const ocrScale = numPages > 40 ? 1.5 : 2.0;
 
     for(let p=1; p<=numPages; p++){
       const pct = Math.round((p-1)/numPages*100);
       setProgress(pct, `Página ${p} de ${numPages} — extrayendo texto…`);
-      const page = await pdf.getPage(p);
-      const textContent = await page.getTextContent();
-      let pageText = textContent.items.map(it=> it.str).join(' ').trim();
+      try{
+        const page = await pdf.getPage(p);
+        const textContent = await page.getTextContent();
+        let pageText = textContent.items.map(it=> it.str).join(' ').trim();
 
-      // Heurística: si la página casi no tiene texto nativo, probablemente es una imagen escaneada -> OCR
-      if(pageText.length < 25){
-        setProgress(pct, `Página ${p} de ${numPages} — sin texto nativo, aplicando OCR…`);
-        if(!ocrWorker){
-          ocrWorker = await Tesseract.createWorker('spa');
+        // Heurística: si la página casi no tiene texto nativo, probablemente es una imagen escaneada -> OCR
+        if(pageText.length < 25){
+          setProgress(pct, `Página ${p} de ${numPages} — sin texto nativo, aplicando OCR…`);
+          if(!ocrWorker){
+            ocrWorker = await Tesseract.createWorker('spa');
+          }
+          const viewport = page.getViewport({scale: ocrScale});
+          const canvas = document.createElement('canvas');
+          canvas.width = viewport.width; canvas.height = viewport.height;
+          const ctx = canvas.getContext('2d');
+          await page.render({canvasContext: ctx, viewport}).promise;
+          const imgData = canvas.toDataURL('image/png');
+          const { data } = await ocrWorker.recognize(imgData);
+          pageText = (data.text || '').trim();
+          ocrPagesUsed++;
+          canvas.width = 0; canvas.height = 0; // liberar memoria
         }
-        const viewport = page.getViewport({scale: 2.0});
-        const canvas = document.createElement('canvas');
-        canvas.width = viewport.width; canvas.height = viewport.height;
-        const ctx = canvas.getContext('2d');
-        await page.render({canvasContext: ctx, viewport}).promise;
-        const imgData = canvas.toDataURL('image/png');
-        const { data } = await ocrWorker.recognize(imgData);
-        pageText = (data.text || '').trim();
-        ocrPagesUsed++;
-        canvas.width = 0; canvas.height = 0; // liberar memoria
+        fullText += `\n\n[Página ${p}]\n` + pageText;
+        if(page.cleanup) page.cleanup(); // libera recursos internos de pdf.js para esa página
+      }catch(pageErr){
+        // Una página dañada o sin memoria suficiente ya NO tira todo el
+        // documento: se marca y se sigue con el resto.
+        console.error(`Error en página ${p} de "${file.name}"`, pageErr);
+        fullText += `\n\n[Página ${p}]\n[No se pudo procesar esta página: ${pageErr.message}]`;
+        failedPages++;
       }
-      fullText += `\n\n[Página ${p}]\n` + pageText;
+      await yieldToBrowser();
     }
-    if(ocrWorker){ await ocrWorker.terminate(); }
+    if(ocrWorker){ await ocrWorker.terminate(); ocrWorker = null; }
 
     company.documents.push({
       id: docId, fileName: file.name, pages: numPages,
@@ -1295,11 +1321,22 @@ async function processPdf(file, company){
     renderDocList();
     renderCompanyList();
     renderHistory();
-    toast(`"${file.name}" procesado (${numPages} pág., ${ocrPagesUsed} con OCR)`);
+    if(failedPages > 0){
+      toast(`"${file.name}" procesado con ${failedPages} página(s) que no se pudieron leer (${ocrPagesUsed} vía OCR). Revisa el texto extraído.`, true);
+    } else {
+      toast(`"${file.name}" procesado (${numPages} pág., ${ocrPagesUsed} con OCR)`);
+    }
   }catch(err){
     console.error(err);
     hideProgress();
-    toast('Error al procesar "' + file.name + '": ' + err.message, true);
+    if(ocrWorker){ try{ await ocrWorker.terminate(); }catch(e){} }
+    let reason = err.message || 'error desconocido';
+    if(err.name === 'QuotaExceededError' || /quota/i.test(reason)){
+      reason = 'no hay suficiente espacio de almacenamiento disponible en este navegador. Intenta liberar espacio o usa otro navegador/dispositivo.';
+    } else if(/memory|allocat/i.test(reason)){
+      reason = 'el navegador se quedó sin memoria procesando este archivo (suele pasar con PDFs escaneados muy pesados). Prueba cerrando otras pestañas o dividiendo el PDF en partes más pequeñas.';
+    }
+    toast('Error al procesar "' + file.name + '": ' + reason, true);
   }
 }
 
@@ -2229,6 +2266,15 @@ async function init(){
   initTheme();
   loadSettings();
   renderTemplateGrid();
+  // Pedimos almacenamiento "persistente" al navegador: sin esto, algunos
+  // navegadores (sobre todo en móvil) limitan agresivamente el espacio
+  // disponible para IndexedDB y pueden purgarlo bajo presión, lo que hace
+  // fallar la carga de archivos grandes (como actas constitutivas extensas)
+  // sin un mensaje claro. Es "mejor esfuerzo": si el navegador no lo soporta
+  // o lo niega, simplemente seguimos con el comportamiento por defecto.
+  if(navigator.storage && navigator.storage.persist){
+    try{ await navigator.storage.persist(); }catch(e){ /* no crítico */ }
+  }
   try{
     await openDB();
     STATE.companies = await idbGetAll();
