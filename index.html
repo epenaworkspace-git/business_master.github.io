@@ -334,12 +334,12 @@ input:-webkit-autofill, input:-webkit-autofill:hover, input:-webkit-autofill:foc
 #chatFab{
   position:fixed; bottom:26px; right:26px; z-index:80;
   width:60px; height:60px; border-radius:50%;
-  background:var(--ink); color:var(--ink-contrast); border:2px solid var(--gold);
+  background:var(--ink-contrast); color:var(--ink); border:2px solid var(--gold);
   display:flex; align-items:center; justify-content:center;
   box-shadow:0 6px 20px rgba(28,43,33,.35);
   font-size:24px;
 }
-#chatFab:hover{background:var(--gold-soft);}
+#chatFab:hover{background:var(--gold-soft); color:#241a04;}
 #chatPanel{
   position:fixed; bottom:100px; right:26px; z-index:81;
   width:380px; max-width:92vw; height:520px; max-height:76vh;
@@ -1611,6 +1611,97 @@ const MODEL_FALLBACKS = {
   xai:       ['grok-4.3', 'grok-3-mini', 'grok-2-latest']
 };
 
+// Caché en memoria de los modelos reales devueltos por cada proveedor
+// (null = aún no se ha consultado). Se llena bajo demanda para poder
+// mostrar un <select> con la lista vigente en vez de un campo de texto
+// libre — el usuario elige de una lista real, no adivina el nombre.
+const MODEL_CACHE = {anthropic:null, openai:null, google:null, xai:null};
+
+/** Consulta el endpoint de "listar modelos" de cada proveedor y devuelve
+ * un arreglo de {id, label}. Lanza si la clave es inválida o hay un error
+ * de red — quien llame decide cómo mostrarlo (ver refreshModelList). */
+async function fetchModelList(providerId, key){
+  if(providerId === 'anthropic'){
+    const headers = {'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'};
+    if(key) headers['x-api-key'] = key;
+    const res = await fetch('https://api.anthropic.com/v1/models?limit=100', {headers});
+    if(!res.ok) throw new Error('HTTP ' + res.status + ' al consultar los modelos de Claude');
+    const json = await res.json();
+    return (json.data||[]).map(m=>({id:m.id, label:m.display_name || m.id}));
+  }
+  if(providerId === 'openai'){
+    const res = await fetch('https://api.openai.com/v1/models', {headers:{'Authorization':'Bearer '+key}});
+    if(!res.ok) throw new Error('HTTP ' + res.status + ' al consultar los modelos de OpenAI');
+    const json = await res.json();
+    return (json.data||[])
+      .map(m=>m.id)
+      .filter(id => /^(gpt|o[0-9]|chatgpt)/i.test(id) && !/embedding|whisper|tts|moderation|dall-e|davinci|babbage|instruct|realtime|audio|image/i.test(id))
+      .sort()
+      .map(id=>({id, label:id}));
+  }
+  if(providerId === 'google'){
+    const res = await fetch('https://generativelanguage.googleapis.com/v1beta/models?pageSize=200', {headers:{'x-goog-api-key':key}});
+    if(!res.ok) throw new Error('HTTP ' + res.status + ' al consultar los modelos de Gemini');
+    const json = await res.json();
+    return (json.models||[])
+      .filter(m => (m.supportedGenerationMethods||[]).includes('generateContent'))
+      .map(m => ({id: m.name.replace(/^models\//,''), label: m.displayName || m.name.replace(/^models\//,'')}));
+  }
+  if(providerId === 'xai'){
+    const res = await fetch('https://api.x.ai/v1/models', {headers:{'Authorization':'Bearer '+key}});
+    if(!res.ok) throw new Error('HTTP ' + res.status + ' al consultar los modelos de Grok');
+    const json = await res.json();
+    return (json.data||[]).map(m=>({id:m.id, label:m.id}));
+  }
+  return [];
+}
+
+/** Vuelve a consultar la lista de modelos de un proveedor y refresca el
+ * <select> correspondiente. opts.silent evita mostrar un toast si falla
+ * (usado en la carga automática al abrir Configuración). */
+async function refreshModelList(id, opts={}){
+  const key = (SETTINGS.keys[id] || '').trim();
+  if(!key && id !== 'anthropic'){
+    if(!opts.silent) toast('Configura la clave de ' + AI_PROVIDERS[id].name + ' antes de actualizar la lista de modelos', true);
+    return;
+  }
+  const hint = document.getElementById('modelHint_' + id);
+  if(hint) hint.textContent = 'Actualizando lista de modelos…';
+  try{
+    const list = await fetchModelList(id, key);
+    MODEL_CACHE[id] = list;
+    renderModelOptions(id);
+    if(hint) hint.textContent = list.length ? `${list.length} modelos disponibles (actualizado desde ${AI_PROVIDERS[id].name}).` : 'El proveedor no devolvió modelos; se muestran las opciones conocidas.';
+  }catch(e){
+    console.warn('No se pudo actualizar la lista de modelos de ' + id, e);
+    if(hint) hint.textContent = 'No se pudo actualizar la lista automáticamente; se muestran las opciones conocidas.';
+    if(!opts.silent) toast('No se pudo actualizar la lista de modelos de ' + AI_PROVIDERS[id].name + ': ' + e.message, true);
+  }
+}
+
+/** Reconstruye las <option> del selector de modelo de un proveedor a partir
+ * de la caché (si ya se consultó) o de la lista de respaldo conocida,
+ * preservando siempre la selección guardada aunque no esté en la lista. */
+function renderModelOptions(id){
+  const select = document.getElementById('model_' + id);
+  if(!select) return;
+  const p = AI_PROVIDERS[id];
+  const current = SETTINGS.models[id] || '';
+  const fetched = MODEL_CACHE[id];
+  const list = (fetched && fetched.length) ? fetched : (MODEL_FALLBACKS[id]||[]).map(m=>({id:m, label:m}));
+  let found = current === '';
+  let optionsHtml = `<option value="">Predeterminado (${escapeHtml(p.defaultModel)})</option>`;
+  list.forEach(m=>{
+    if(m.id === current) found = true;
+    optionsHtml += `<option value="${escapeHtml(m.id)}" ${m.id===current?'selected':''}>${escapeHtml(m.label)}</option>`;
+  });
+  if(current && !found){
+    optionsHtml += `<option value="${escapeHtml(current)}" selected>${escapeHtml(current)} (guardado)</option>`;
+  }
+  select.innerHTML = optionsHtml;
+}
+
+
 const AI_PROVIDERS = {
   anthropic:{
     name:'Claude (Anthropic)',
@@ -2424,7 +2515,11 @@ function renderSettingsProviders(){
         <input type="password" id="key_${id}" class="input-line" placeholder="${p.keyPlaceholder}" value="${escapeHtml(key)}" oninput="updateKey('${id}', this.value)">
         <button type="button" onclick="toggleKeyVisibility('${id}')" title="Mostrar/ocultar">👁</button>
       </div>
-      <input type="text" class="input-line" style="margin-top:8px" placeholder="Modelo (opcional) — por defecto: ${p.defaultModel}" value="${escapeHtml(model)}" oninput="updateModel('${id}', this.value)">
+      <div class="model-row" style="margin-top:8px; display:flex; gap:8px; align-items:center;">
+        <select id="model_${id}" class="input-line" style="flex:1" onchange="updateModel('${id}', this.value)"></select>
+        <button type="button" class="btn ghost small" onclick="refreshModelList('${id}')" title="Actualizar lista de modelos">🔄</button>
+      </div>
+      <div class="model-hint" id="modelHint_${id}" style="font-size:11px; color:var(--muted); margin-top:4px;"></div>
       <div class="provider-actions">
         <button class="btn gold small" onclick="saveAndTestProvider('${id}')">Guardar y verificar conexión</button>
         <button class="btn ghost small" onclick="removeKey('${id}')" ${hasKey?'':'disabled'}>Eliminar clave</button>
@@ -2432,6 +2527,17 @@ function renderSettingsProviders(){
       <div class="provider-status" id="status_${id}"></div>
     </div>`;
   }).join('');
+
+  // Llena cada <select> con la caché conocida y dispara una actualización
+  // silenciosa en segundo plano si ya hay clave configurada (o es Anthropic,
+  // que puede listar modelos incluso sin clave en algunos contextos).
+  PROVIDER_ORDER.forEach(id=>{
+    renderModelOptions(id);
+    const key = (SETTINGS.keys[id] || '').trim();
+    if((key || id === 'anthropic') && !MODEL_CACHE[id]){
+      refreshModelList(id, {silent:true});
+    }
+  });
 }
 
 function selectDefaultProvider(id){
@@ -2473,12 +2579,13 @@ function removeKey(id){
  */
 async function saveAndTestProvider(id){
   const keyInput = document.getElementById('key_' + id);
-  const modelInput = keyInput.closest('.provider-block').querySelector('input[type="text"]');
+  const modelSelect = document.getElementById('model_' + id);
   SETTINGS.keys[id] = keyInput.value.trim();
-  SETTINGS.models[id] = modelInput.value.trim();
+  SETTINGS.models[id] = modelSelect ? modelSelect.value.trim() : (SETTINGS.models[id] || '');
   saveSettings();
   if(window.fbSyncApiKeys) window.fbSyncApiKeys();
   renderSettingsProviders(); // refresca el estado de "Eliminar clave", etc.
+  refreshModelList(id, {silent:true}); // la clave pudo cambiar: refrescar la lista de modelos disponibles
 
   const status = document.getElementById('status_' + id);
   status.textContent = 'Guardando y probando conexión…'; status.className = 'provider-status testing';
