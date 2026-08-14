@@ -89,6 +89,7 @@ body.authenticated #chatPanel.open{display:flex;}
   display:flex; flex-direction:column;
   min-height:100vh;
 }
+#sidebarOverlay{display:none; position:fixed; inset:0; background:rgba(0,0,0,0.4); z-index:55;}
 .brand{
   padding:22px 20px 16px 20px;
   border-bottom:1px solid var(--line);
@@ -517,10 +518,20 @@ input:-webkit-autofill, input:-webkit-autofill:hover, input:-webkit-autofill:foc
   .tabs{padding:0 12px; overflow-x:auto;}
   .modal.wide{width:100%;}
   .provider-grid{grid-template-columns:1fr;}
+  /* En pantallas pequeñas la barra lateral queda oculta fuera de la
+     pantalla (translateX(-100%) arriba); sin este botón visible no hay
+     forma de abrirla ni de llegar a "+ Nuevo expediente". */
+  #mobileToggle{display:inline-flex !important; align-items:center; justify-content:center;}
+  /* Fondo oscuro detrás de la barra lateral cuando está abierta en móvil,
+     y que un toque fuera de ella la cierre (controlado desde JS en
+     toggleSidebarMobile). */
+  #sidebarOverlay.open{display:block;}
 }
 </style>
 </head>
 <body>
+
+<div id="sidebarOverlay" onclick="toggleSidebarMobile()"></div>
 
 <!-- ============ GATE DE ACCESO (arquitectura idéntica a Nexus Advance) ============ -->
 <!-- La configuración de Firebase se captura por window.prompt() la primera vez en
@@ -1142,7 +1153,11 @@ function switchTab(tab){
   document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
   document.getElementById('view-'+tab).classList.add('active');
 }
-function toggleSidebarMobile(){ document.getElementById('sidebar').classList.toggle('open'); }
+function toggleSidebarMobile(){
+  const isOpen = document.getElementById('sidebar').classList.toggle('open');
+  const overlay = document.getElementById('sidebarOverlay');
+  if(overlay) overlay.classList.toggle('open', isOpen);
+}
 function escapeHtml(s){
   return (s||'').replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
@@ -1183,6 +1198,11 @@ async function createCompany(){
   closeModal('newCompanyModal');
   renderCompanyList();
   renderActiveCompany();
+  if(window.innerWidth <= 860){
+    document.getElementById('sidebar').classList.remove('open');
+    const overlay = document.getElementById('sidebarOverlay');
+    if(overlay) overlay.classList.remove('open');
+  }
   toast('Expediente creado: ' + name);
 }
 
@@ -1190,6 +1210,13 @@ function selectCompany(id){
   STATE.activeId = id;
   renderCompanyList();
   renderActiveCompany();
+  // En móvil la barra lateral se muestra como panel superpuesto; al elegir
+  // un expediente la cerramos para dejar ver el contenido de inmediato.
+  if(window.innerWidth <= 860){
+    document.getElementById('sidebar').classList.remove('open');
+    const overlay = document.getElementById('sidebarOverlay');
+    if(overlay) overlay.classList.remove('open');
+  }
 }
 
 function renderActiveCompany(){
