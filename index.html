@@ -1284,20 +1284,26 @@ async function processPdf(file, company){
   const sizeMB = file.size / (1024*1024);
   setProgress(2, `Leyendo "${file.name}" (${sizeMB.toFixed(1)} MB)…`);
   if(sizeMB > 60){
-    toast(`"${file.name}" pesa ${sizeMB.toFixed(0)} MB — es un archivo grande, el procesamiento puede tardar varios minutos, sobre todo si requiere OCR. No cierres esta pestaña.`, false);
+    toast(`"${file.name}" pesa ${sizeMB.toFixed(0)} MB — es un archivo grande, el procesamiento puede tardar varios minutos. No cierres esta pestaña.`, false);
+  }
+  const hasAnyKey = PROVIDER_ORDER.some(id => (SETTINGS.keys[id]||'').trim());
+  if(!hasAnyKey){
+    toast('No tienes ninguna clave de IA configurada en ⚙️ Configuración: se intentará leer páginas escaneadas con OCR local, que es menos confiable. Para mejores resultados, configura al menos una clave.', true);
   }
   let ocrWorker = null;
+  let tesseractDisabled = false; // se apaga tras el primer fallo/timeout para no colgar el resto del documento
   try{
     const buf = await file.arrayBuffer();
     const pdf = await pdfjsLib.getDocument({data: buf}).promise;
     const numPages = pdf.numPages;
     let fullText = '';
+    let visionPagesUsed = 0;
     let ocrPagesUsed = 0;
-    let failedPages = 0;
-    // En documentos muy largos reducimos la escala de renderizado para OCR:
-    // baja el uso de memoria por página (canvas más pequeño) y evita que el
-    // navegador se quede sin RAM a mitad de un expediente extenso.
-    const ocrScale = numPages > 40 ? 1.5 : 2.0;
+    let unreadablePages = 0;
+    // En documentos muy largos reducimos la escala de renderizado: baja el
+    // uso de memoria por página y evita que el navegador se quede sin RAM
+    // a mitad de un expediente extenso.
+    const renderScale = numPages > 40 ? 1.5 : 2.0;
 
     for(let p=1; p<=numPages; p++){
       const pct = Math.round((p-1)/numPages*100);
@@ -1307,31 +1313,64 @@ async function processPdf(file, company){
         const textContent = await page.getTextContent();
         let pageText = textContent.items.map(it=> it.str).join(' ').trim();
 
-        // Heurística: si la página casi no tiene texto nativo, probablemente es una imagen escaneada -> OCR
+        // Heurística: si la página casi no tiene texto nativo, probablemente es una imagen escaneada.
         if(pageText.length < 25){
-          setProgress(pct, `Página ${p} de ${numPages} — sin texto nativo, aplicando OCR…`);
-          if(!ocrWorker){
-            ocrWorker = await Tesseract.createWorker('spa');
-          }
-          const viewport = page.getViewport({scale: ocrScale});
+          const viewport = page.getViewport({scale: renderScale});
           const canvas = document.createElement('canvas');
           canvas.width = viewport.width; canvas.height = viewport.height;
           const ctx = canvas.getContext('2d');
           await page.render({canvasContext: ctx, viewport}).promise;
-          const imgData = canvas.toDataURL('image/png');
-          const { data } = await ocrWorker.recognize(imgData);
-          pageText = (data.text || '').trim();
-          ocrPagesUsed++;
+          const dataUrl = canvas.toDataURL('image/png');
+          const base64Png = dataUrl.split(',')[1];
           canvas.width = 0; canvas.height = 0; // liberar memoria
+
+          let resolved = false;
+
+          // 1) Vía principal: leer la imagen con el proveedor de IA ya configurado.
+          setProgress(pct, `Página ${p} de ${numPages} — sin texto nativo, leyendo con IA…`);
+          try{
+            const vision = await extractPageWithVision(base64Png);
+            if(vision){
+              pageText = vision.text;
+              visionPagesUsed++;
+              resolved = true;
+            }
+          }catch(visionErr){
+            console.warn(`Lectura por IA falló en página ${p}`, visionErr);
+          }
+
+          // 2) Respaldo: OCR local (Tesseract), solo si la IA no estaba disponible
+          // o no tenía clave, y solo mientras no haya fallado ya una vez en este documento.
+          if(!resolved && !tesseractDisabled){
+            setProgress(pct, `Página ${p} de ${numPages} — aplicando OCR local…`);
+            try{
+              if(!ocrWorker){
+                ocrWorker = await withTimeout(Tesseract.createWorker('spa'), 25000, 'Tiempo de espera agotado iniciando OCR local');
+              }
+              const { data } = await withTimeout(ocrWorker.recognize(dataUrl), 40000, 'Tiempo de espera agotado en OCR local');
+              pageText = (data.text || '').trim();
+              ocrPagesUsed++;
+              resolved = true;
+            }catch(ocrErr){
+              console.warn(`OCR local falló en página ${p}, se desactiva para el resto del documento`, ocrErr);
+              tesseractDisabled = true;
+              if(ocrWorker){ try{ await ocrWorker.terminate(); }catch(e){} ocrWorker = null; }
+            }
+          }
+
+          if(!resolved){
+            pageText = '';
+            unreadablePages++;
+          }
         }
-        fullText += `\n\n[Página ${p}]\n` + pageText;
+        fullText += `\n\n[Página ${p}]\n` + (pageText || '[No se pudo extraer texto de esta página]');
         if(page.cleanup) page.cleanup(); // libera recursos internos de pdf.js para esa página
       }catch(pageErr){
         // Una página dañada o sin memoria suficiente ya NO tira todo el
         // documento: se marca y se sigue con el resto.
         console.error(`Error en página ${p} de "${file.name}"`, pageErr);
         fullText += `\n\n[Página ${p}]\n[No se pudo procesar esta página: ${pageErr.message}]`;
-        failedPages++;
+        unreadablePages++;
       }
       await yieldToBrowser();
     }
@@ -1339,7 +1378,7 @@ async function processPdf(file, company){
 
     company.documents.push({
       id: docId, fileName: file.name, pages: numPages,
-      ocrUsed: ocrPagesUsed, text: fullText.trim(), addedAt: Date.now()
+      ocrUsed: visionPagesUsed + ocrPagesUsed, text: fullText.trim(), addedAt: Date.now()
     });
     logActivity(company, 'documento', `Documento cargado: ${file.name} (${numPages} pág.)`);
     await persist(company);
@@ -1348,10 +1387,14 @@ async function processPdf(file, company){
     renderDocList();
     renderCompanyList();
     renderHistory();
-    if(failedPages > 0){
-      toast(`"${file.name}" procesado con ${failedPages} página(s) que no se pudieron leer (${ocrPagesUsed} vía OCR). Revisa el texto extraído.`, true);
+    const parts = [];
+    if(visionPagesUsed) parts.push(`${visionPagesUsed} vía IA`);
+    if(ocrPagesUsed) parts.push(`${ocrPagesUsed} vía OCR local`);
+    const methodSummary = parts.length ? ` (${parts.join(', ')})` : '';
+    if(unreadablePages > 0){
+      toast(`"${file.name}" procesado, pero ${unreadablePages} página(s) no se pudieron leer${methodSummary ? methodSummary : ''}. Revisa el texto extraído.`, true);
     } else {
-      toast(`"${file.name}" procesado (${numPages} pág., ${ocrPagesUsed} con OCR)`);
+      toast(`"${file.name}" procesado (${numPages} pág.${methodSummary})`);
     }
   }catch(err){
     console.error(err);
@@ -1493,6 +1536,11 @@ const AI_PROVIDERS = {
     buildRequest(system, userMsg, maxTokens, key, model, opts={}){
       // Aceptar tanto "gemini-2.0-flash" como "models/gemini-2.0-flash" si lo pegan tal cual de la documentación.
       const m = (model || this.defaultModel).replace(/^models\//,'');
+      // userMsg puede venir como string normal, o como {__vision__:true, base64Png, prompt}
+      // cuando se usa para transcribir una página escaneada (ver buildVisionContent).
+      const parts = (userMsg && userMsg.__vision__)
+        ? [{inlineData:{mimeType:'image/png', data:userMsg.base64Png}}, {text:userMsg.prompt}]
+        : [{text:userMsg}];
       return {
         // La clave se envía en el header x-goog-api-key (igual que Claude/ChatGPT/Grok)
         // en vez de como parámetro en la URL — más consistente y evita que quede en logs.
@@ -1500,7 +1548,7 @@ const AI_PROVIDERS = {
         headers:{'Content-Type':'application/json','x-goog-api-key':key},
         body: JSON.stringify({
           systemInstruction:{parts:[{text:system}]},
-          contents:[{role:'user', parts:[{text:userMsg}]}],
+          contents:[{role:'user', parts}],
           generationConfig:{maxOutputTokens:maxTokens}
         })
       };
@@ -1542,6 +1590,29 @@ const AI_PROVIDERS = {
   }
 };
 const PROVIDER_ORDER = ['anthropic','openai','google','xai'];
+
+/** Arma el "userMessage" con la imagen de una página escaneada en el formato
+ * que cada proveedor espera, para pedirle que transcriba el texto visible.
+ * Devuelve null si ese proveedor no tiene aquí soporte de imagen implementado. */
+function buildVisionContent(providerId, base64Png, prompt){
+  if(providerId === 'anthropic'){
+    return [
+      {type:'image', source:{type:'base64', media_type:'image/png', data: base64Png}},
+      {type:'text', text: prompt}
+    ];
+  }
+  if(providerId === 'openai' || providerId === 'xai'){
+    return [
+      {type:'text', text: prompt},
+      {type:'image_url', image_url:{url: 'data:image/png;base64,' + base64Png}}
+    ];
+  }
+  if(providerId === 'google'){
+    return {__vision__:true, base64Png, prompt};
+  }
+  return null;
+}
+
 
 let SETTINGS = {
   defaultProvider:'anthropic',
@@ -1672,6 +1743,52 @@ function buildProviderFallbackOrder(){
   const preferred = SETTINGS.defaultProvider || 'anthropic';
   return [preferred, ...PROVIDER_ORDER.filter(id => id !== preferred)];
 }
+
+/** Corre una promesa con un límite de tiempo: si no responde antes de `ms`,
+ * la rechaza. Evita que una llamada de IA u OCR colgada congele el resto
+ * del procesamiento del documento. */
+function withTimeout(promise, ms, timeoutMsg){
+  let timer;
+  const timeout = new Promise((_, reject)=>{
+    timer = setTimeout(()=> reject(new Error(timeoutMsg || 'Tiempo de espera agotado')), ms);
+  });
+  return Promise.race([promise, timeout]).finally(()=> clearTimeout(timer));
+}
+
+/**
+ * Transcribe el texto visible de una página escaneada usando el/los
+ * proveedores de IA que el usuario ya tiene configurados en ⚙️ Configuración
+ * (misma conexión que usa el resto de la app). Es la vía principal de
+ * lectura para páginas sin texto nativo — mucho más confiable que el OCR
+ * local, que depende de una librería externa que puede fallar o colgarse.
+ * Devuelve {text, provider} o null si ningún proveedor con clave pudo leerla.
+ */
+async function extractPageWithVision(base64Png){
+  const prompt = 'Transcribe fielmente todo el texto visible en esta imagen de una página de un documento legal en español (por ejemplo, un acta constitutiva u otro documento notarial escaneado). Devuelve ÚNICAMENTE el texto transcrito, sin agregar comentarios, encabezados ni explicaciones. Si la imagen no contiene texto legible, responde exactamente: [SIN TEXTO LEGIBLE]';
+  const order = buildProviderFallbackOrder();
+  for(const providerId of order){
+    const key = (SETTINGS.keys[providerId] || '').trim();
+    if(!key) continue; // sin clave configurada para este proveedor, probar el siguiente
+    const content = buildVisionContent(providerId, base64Png, prompt);
+    if(!content) continue; // proveedor sin soporte de imagen implementado aquí
+    try{
+      const r = await withTimeout(
+        callProviderWithModelFallback(providerId, 'Eres un asistente que transcribe documentos escaneados con precisión, palabra por palabra.', content, 3000, key, (SETTINGS.models[providerId]||'').trim()),
+        35000, 'Tiempo de espera agotado leyendo la página con IA'
+      );
+      if(r.ok){
+        const text = (r.text||'').trim();
+        if(text && !/^\[SIN TEXTO LEGIBLE\]/i.test(text)) return {text, provider: providerId};
+        return {text:'', provider: providerId}; // el modelo confirmó que no hay texto legible
+      }
+      console.warn(`Lectura por IA falló con ${providerId}:`, r.message);
+    }catch(e){
+      console.warn(`Lectura por IA falló/expiró con ${providerId}:`, e.message);
+    }
+  }
+  return null; // ningún proveedor con clave disponible, o todos fallaron
+}
+
 
 /**
  * Punto de entrada usado por el resto de la app (análisis legal, asesoría de
