@@ -398,6 +398,24 @@ input:-webkit-autofill, input:-webkit-autofill:hover, input:-webkit-autofill:foc
 
 /* ---------- Settings modal ---------- */
 .modal.wide{width:640px;}
+
+/* ---------- Visor de documento (zoom + descarga) ---------- */
+.doc-viewer-modal{width:820px; max-width:100%; display:flex; flex-direction:column; max-height:88vh;}
+.doc-viewer-toolbar{display:flex; align-items:center; gap:14px; margin-bottom:10px;}
+.doc-viewer-controls{display:flex; align-items:center; gap:6px; flex:0 0 auto;}
+.doc-viewer-zoom-label{font-size:12px; color:var(--muted); min-width:38px; text-align:center;}
+.doc-viewer-body{flex:1; min-height:0; border:1px solid var(--line); border-radius:6px; background:var(--bg,#fff);}
+.doc-viewer-pre{
+  white-space:pre-wrap; word-break:break-word; font-family:'Courier New', monospace;
+  padding:18px; margin:0; line-height:1.6; font-size:15px; /* controlado dinámicamente por JS con el zoom */
+}
+.doc-viewer-actions{justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;}
+.doc-viewer-downloads{display:flex; gap:8px; flex-wrap:wrap;}
+@media (max-width:640px){
+  .doc-viewer-toolbar{flex-wrap:wrap;}
+  .doc-viewer-actions{flex-direction:column-reverse; align-items:stretch;}
+  .doc-viewer-downloads{justify-content:center;}
+}
 .modal-scroll{max-height:64vh; overflow-y:auto; padding-right:6px; margin:0 -4px;}
 .settings-section-title{
   font-family:var(--serif); font-size:14px; font-weight:600; margin:18px 0 10px 0;
@@ -765,6 +783,33 @@ input:-webkit-autofill, input:-webkit-autofill:hover, input:-webkit-autofill:foc
   </div>
 </div>
 
+<!-- ============ VISOR DE DOCUMENTO (zoom + descarga) ============ -->
+<div class="modal-bg" id="docViewerModal">
+  <div class="modal wide doc-viewer-modal">
+    <div class="doc-viewer-toolbar">
+      <h3 id="docViewerTitle" style="margin:0; flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">Documento</h3>
+      <div class="doc-viewer-controls">
+        <button class="btn ghost small" onclick="docViewerZoom(-1)" title="Reducir">A−</button>
+        <span id="docViewerZoomLabel" class="doc-viewer-zoom-label">100%</span>
+        <button class="btn ghost small" onclick="docViewerZoom(1)" title="Ampliar">A+</button>
+        <button class="btn ghost small" onclick="docViewerZoom(0)" title="Restablecer">100%</button>
+      </div>
+    </div>
+    <div class="modal-scroll doc-viewer-body">
+      <pre id="docViewerText" class="doc-viewer-pre"></pre>
+    </div>
+    <div class="modal-actions doc-viewer-actions">
+      <div class="doc-viewer-downloads">
+        <button class="btn ghost small" onclick="downloadDocAs('txt')">⬇ Texto (.txt)</button>
+        <button class="btn ghost small" onclick="downloadDocAs('doc')">⬇ Word (.doc)</button>
+        <button class="btn ghost small" onclick="downloadDocAs('pdf')">⬇ PDF (.pdf)</button>
+        <button class="btn ghost small" onclick="copyDocText()">⧉ Copiar texto</button>
+      </div>
+      <button class="btn ghost" onclick="closeModal('docViewerModal')">Cerrar</button>
+    </div>
+  </div>
+</div>
+
 <!-- ============ CONFIRMACIÓN DE BORRADO TOTAL ============ -->
 <div class="modal-bg" id="dangerModal">
   <div class="modal">
@@ -1015,6 +1060,7 @@ document.addEventListener('DOMContentLoaded', initFirebaseCloud);
 <!-- ============ LIBRERÍAS EXTERNAS (CDN) ============ -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/4.1.1/tesseract.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/docx/8.5.0/docx.umd.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pptxgenjs/3.12.0/pptxgen.bundle.js"></script>
@@ -1432,13 +1478,101 @@ function renderDocList(){
   }).join('');
 }
 
+/* ---------- Visor de documento: zoom + descarga en TXT / Word / PDF ---------- */
+let DOC_VIEWER_STATE = { docId:null, fileName:'', text:'', zoomPct:100 };
+
 function previewDoc(docId){
   const c = activeCompany();
-  const d = c.documents.find(x=>x.id===docId);
+  const d = c && c.documents.find(x=>x.id===docId);
   if(!d) return;
-  const w = window.open('', '_blank');
-  w.document.write(`<pre style="white-space:pre-wrap;font-family:monospace;padding:20px;">${escapeHtml(d.text)}</pre>`);
+  DOC_VIEWER_STATE = { docId: d.id, fileName: d.fileName, text: d.text, zoomPct: 100 };
+  document.getElementById('docViewerTitle').textContent = d.fileName;
+  document.getElementById('docViewerText').textContent = d.text;
+  applyDocViewerZoom();
+  openModal('docViewerModal');
 }
+
+function applyDocViewerZoom(){
+  const pre = document.getElementById('docViewerText');
+  pre.style.fontSize = Math.round(15 * DOC_VIEWER_STATE.zoomPct / 100) + 'px';
+  document.getElementById('docViewerZoomLabel').textContent = DOC_VIEWER_STATE.zoomPct + '%';
+}
+
+function docViewerZoom(direction){
+  // direction: -1 reducir, +1 ampliar, 0 restablecer a 100%
+  if(direction === 0){ DOC_VIEWER_STATE.zoomPct = 100; }
+  else{
+    DOC_VIEWER_STATE.zoomPct = Math.max(50, Math.min(300, DOC_VIEWER_STATE.zoomPct + direction*15));
+  }
+  applyDocViewerZoom();
+}
+
+function copyDocText(){
+  if(!DOC_VIEWER_STATE.text){ return; }
+  navigator.clipboard.writeText(DOC_VIEWER_STATE.text)
+    .then(()=> toast('Texto copiado al portapapeles'))
+    .catch(()=> toast('No se pudo copiar automáticamente; selecciona el texto manualmente', true));
+}
+
+function triggerBlobDownload(blob, filename){
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=> URL.revokeObjectURL(url), 4000);
+}
+
+function baseFileName(){
+  return (DOC_VIEWER_STATE.fileName || 'documento').replace(/\.pdf$/i, '').replace(/[\\/:*?"<>|]/g, '_');
+}
+
+function downloadDocAs(format){
+  const text = DOC_VIEWER_STATE.text || '';
+  const name = baseFileName();
+  if(!text){ toast('No hay texto extraído para descargar', true); return; }
+
+  if(format === 'txt'){
+    const blob = new Blob([text], {type:'text/plain;charset=utf-8'});
+    triggerBlobDownload(blob, name + '.txt');
+    return;
+  }
+
+  if(format === 'doc'){
+    // Word abre archivos HTML guardados con extensión .doc sin necesidad de
+    // librerías adicionales: es el método más confiable para generar un
+    // documento editable en Word directamente desde el navegador.
+    const escaped = escapeHtml(text).replace(/\n/g, '<br>');
+    const html = `<!DOCTYPE html><html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">
+      <head><meta charset="utf-8"><title>${escapeHtml(name)}</title></head>
+      <body style="font-family:'Courier New',monospace; font-size:12pt; line-height:1.5;">${html_placeholder}</body></html>`.replace('${html_placeholder}', escaped);
+    const blob = new Blob([html], {type:'application/msword'});
+    triggerBlobDownload(blob, name + '.doc');
+    return;
+  }
+
+  if(format === 'pdf'){
+    if(!window.jspdf){ toast('No se pudo cargar el generador de PDF; revisa tu conexión a internet.', true); return; }
+    try{
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF({unit:'pt', format:'letter'});
+      const marginX = 48, marginY = 56, maxWidth = 612 - marginX*2, lineHeight = 14;
+      doc.setFont('Courier'); doc.setFontSize(10);
+      const lines = doc.splitTextToSize(text, maxWidth);
+      let y = marginY;
+      lines.forEach(line=>{
+        if(y > 792 - marginY){ doc.addPage(); y = marginY; }
+        doc.text(line, marginX, y);
+        y += lineHeight;
+      });
+      doc.save(name + '.pdf');
+    }catch(e){
+      console.error(e);
+      toast('Error al generar el PDF: ' + e.message, true);
+    }
+    return;
+  }
+}
+
 
 async function removeDoc(docId){
   const c = activeCompany();
