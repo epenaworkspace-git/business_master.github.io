@@ -2121,7 +2121,8 @@ Responde ÚNICAMENTE con un objeto JSON válido, sin texto adicional, sin markdo
   "riesgosPendientes": ["string", "..."],
   "resumenEjecutivo": "string de 2-4 líneas"
 }
-Si algún dato no aparece en el documento, indícalo como "No especificado en el documento" en vez de inventarlo. Nunca inventes RFC, fechas o cifras que no estén en el texto.`;
+Si algún dato no aparece en el documento, indícalo como "No especificado en el documento" en vez de inventarlo. Nunca inventes RFC, fechas o cifras que no estén en el texto.
+Sé conciso: máximo 8 elementos en "marcoNormativo" y máximo 8 en "riesgosPendientes", priorizando lo más relevante, para que la respuesta quepa completa.`;
 
 async function runLegalAnalysis(){
   const c = activeCompany();
@@ -2184,10 +2185,11 @@ Responde ÚNICAMENTE con un objeto JSON válido, sin texto adicional, sin markdo
 {
   "resumen": "string 2-3 líneas",
   "pasos": [
-    {"titulo": "string", "categoria": "permisos|tramites|estatutos|inversion|personal", "descripcion": "string 2-4 líneas", "documentosRequeridos": ["string", "..."]}
+    {"titulo": "string", "categoria": "permisos|tramites|estatutos|inversion|personal", "descripcion": "string breve de máximo 3 líneas", "documentosRequeridos": ["string", "..."]}
   ]
 }
-Ordena los pasos en secuencia lógica de ejecución. Sé específico a la normativa mexicana vigente. No inventes cifras exactas de costos u honorarios; si es relevante mencionarlos, usa rangos orientativos y aclara que varían.`;
+Ordena los pasos en secuencia lógica de ejecución. Sé específico a la normativa mexicana vigente. No inventes cifras exactas de costos u honorarios; si es relevante mencionarlos, usa rangos orientativos y aclara que varían.
+Limita la ruta a un máximo de 8 pasos (prioriza los más importantes) y a un máximo de 4 documentos requeridos por paso — sé conciso, no exhaustivo, para que la respuesta quepa completa.`;
 
 async function runIdeaAdvisor(){
   const c = activeCompany();
@@ -2197,7 +2199,7 @@ async function runIdeaAdvisor(){
   out.innerHTML = '<div style="padding:20px;text-align:center;color:var(--muted);"><span class="spinner"></span> Generando ruta…</div>';
   try{
     const context = c ? `Contexto de la empresa "${c.name}" (usa esto para adaptar la ruta):\n${c.analysis ? JSON.stringify(c.analysis) : corpusForCompany(c, 6000)}` : 'No hay expediente de empresa asociado; trata la idea como un proyecto nuevo/independiente.';
-    const raw = await callAI(IDEA_SYSTEM_PROMPT, `${context}\n\nIdea de negocio a materializar:\n${idea}`, 4200);
+    const raw = await callAI(IDEA_SYSTEM_PROMPT, `${context}\n\nIdea de negocio a materializar:\n${idea}`, 6500);
     const parsed = extractJson(raw);
     if(c){
       c.ideaSessions.push({idea, roadmap: parsed, createdAt: Date.now()});
